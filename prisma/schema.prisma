@@ -1,0 +1,704 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  USER
+}
+
+enum UserPermission {
+  READ
+  WRITE
+}
+
+enum RiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum RiskStatus {
+  IDENTIFIED
+  ANALYZED
+  TREATMENT_DEFINED
+  TREATED
+  ACCEPTED
+  CLOSED
+}
+
+enum TreatmentOption {
+  MITIGATE
+  ACCEPT
+  TRANSFER
+  AVOID
+}
+
+enum TreatmentStatus {
+  PLANNED
+  IN_PROGRESS
+  IMPLEMENTED
+  VERIFIED
+}
+
+enum TreatmentActionStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum OperationalControlStatus {
+  DRAFT
+  ACTIVE
+  MONITORING
+  NEEDS_ATTENTION
+  RETIRED
+}
+
+enum KpiDirection {
+  HIGHER_IS_BETTER
+  LOWER_IS_BETTER
+}
+
+enum KpiFrequency {
+  DAILY
+  WEEKLY
+  MONTHLY
+  QUARTERLY
+  ANNUAL
+}
+
+enum KpiMetricType {
+  NUMBER
+  PERCENTAGE
+  RATIO
+  INDEX
+}
+
+model User {
+  id           String         @id @default(cuid())
+  email        String         @unique
+  passwordHash String
+  role         UserRole       @default(USER)
+  permission   UserPermission @default(READ)
+  isActive     Boolean        @default(true)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  @@map("users")
+}
+
+model InformationAsset {
+  id              String   @id @default(cuid())
+  code            String   @unique
+  name            String
+  type            String
+  criticality     RiskLevel @default(MEDIUM)
+  confidentiality Int
+  integrity       Int
+  availability    Int
+  ownerUserId     String?
+  ownerName       String?
+  businessContext String?
+  tags            String[]
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  risks           Risk[]
+  kpis            Kpi[]
+
+  @@index([isActive])
+  @@index([criticality])
+  @@map("information_assets")
+}
+
+model Risk {
+  id                 String          @id @default(cuid())
+  assetId            String
+  title              String
+  scenario           String
+  threat             String
+  vulnerability      String
+  threatSource       String?
+  affectedCia        String[]
+  likelihood         Int
+  impact             Int
+  inherentScore      Int
+  inherentLevel      RiskLevel
+  residualLikelihood Int?
+  residualImpact     Int?
+  residualScore      Int?
+  residualLevel      RiskLevel?
+  status             RiskStatus      @default(IDENTIFIED)
+  ownerUserId        String?
+  ownerName          String?
+  context            Json?
+  isActive           Boolean         @default(true)
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+  asset              InformationAsset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  treatments         RiskTreatment[]
+  controls           OperationalControl[] @relation("ControlRisks")
+  kpis               Kpi[]
+
+  @@index([assetId])
+  @@index([status])
+  @@index([inherentLevel])
+  @@map("risks")
+}
+
+model RiskOperationsConfig {
+  id                  String   @id @default(cuid())
+  key                 String   @unique @default("default")
+  matrixSize          Int      @default(5)
+  acceptanceThreshold Int      @default(10)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@map("risk_operations_config")
+}
+
+model RiskTreatment {
+  id                 String                @id @default(cuid())
+  riskId             String
+  strategy           TreatmentOption
+  plan               String
+  responsibleUserId  String?
+  responsibleName    String?
+  dueDate            DateTime?
+  residualLikelihood Int?
+  residualImpact     Int?
+  residualScore      Int?
+  residualLevel      RiskLevel?
+  acceptedBy         String?
+  acceptedAt         DateTime?
+  status             TreatmentStatus       @default(PLANNED)
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
+  risk               Risk                  @relation(fields: [riskId], references: [id], onDelete: Cascade)
+  actions            TreatmentAction[]
+  controls           OperationalControl[]  @relation("ControlTreatments")
+
+  @@index([riskId])
+  @@index([status])
+  @@map("risk_treatments")
+}
+
+model TreatmentAction {
+  id              String                @id @default(cuid())
+  treatmentId     String
+  title           String
+  description     String?
+  ownerUserId     String?
+  ownerName       String?
+  dueDate         DateTime?
+  status          TreatmentActionStatus @default(PENDING)
+  evidenceUrl     String?
+  evidenceNotes   String?
+  completedAt     DateTime?
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+  treatment       RiskTreatment         @relation(fields: [treatmentId], references: [id], onDelete: Cascade)
+
+  @@index([treatmentId])
+  @@index([status])
+  @@map("treatment_actions")
+}
+
+model OperationalControl {
+  id                  String                   @id @default(cuid())
+  title               String
+  category            String
+  type                String
+  objective           String
+  implementation      String?
+  monitoringFrequency String?
+  ownerUserId         String?
+  ownerName           String?
+  parameters          Json?
+  status              OperationalControlStatus @default(DRAFT)
+  createdAt           DateTime                 @default(now())
+  updatedAt           DateTime                 @updatedAt
+  risks               Risk[]                   @relation("ControlRisks")
+  treatments          RiskTreatment[]          @relation("ControlTreatments")
+  kpis                Kpi[]
+
+  @@index([status])
+  @@map("operational_controls")
+}
+
+model Kpi {
+  id             String          @id @default(cuid())
+  name           String
+  description    String?
+  metricType     KpiMetricType
+  unit           String
+  frequency      KpiFrequency
+  targetValue    Float
+  warningValue   Float?
+  direction      KpiDirection    @default(HIGHER_IS_BETTER)
+  assetId        String?
+  riskId         String?
+  controlId      String?
+  status         String          @default("NO_DATA")
+  isActive       Boolean         @default(true)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  asset          InformationAsset? @relation(fields: [assetId], references: [id], onDelete: SetNull)
+  risk           Risk?           @relation(fields: [riskId], references: [id], onDelete: SetNull)
+  control        OperationalControl? @relation(fields: [controlId], references: [id], onDelete: SetNull)
+  measurements   KpiMeasurement[]
+
+  @@index([frequency])
+  @@index([isActive])
+  @@map("kpis")
+}
+
+model KpiMeasurement {
+  id            String   @id @default(cuid())
+  kpiId         String
+  measuredAt    DateTime
+  value         Float
+  notes         String?
+  source        String   @default("MANUAL")
+  evidenceUrl   String?
+  createdBy     String?
+  createdAt     DateTime @default(now())
+  kpi           Kpi      @relation(fields: [kpiId], references: [id], onDelete: Cascade)
+
+  @@unique([kpiId, measuredAt])
+  @@index([kpiId, measuredAt])
+  @@map("kpi_measurements")
+}
+
+model DataSource {
+  id         String       @id @default(cuid())
+  name       String       @unique
+  type       String
+  endpoint   String?
+  isActive   Boolean      @default(true)
+  lastSync   DateTime?
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+  threatData ThreatData[]
+
+  @@map("data_sources")
+}
+
+model ThreatData {
+  id          String     @id @default(cuid())
+  sourceId    String
+  title       String
+  description String?
+  severity    String
+  category    String
+  tags        String[]
+  rawData     Json?
+  publishedAt DateTime
+  createdAt   DateTime   @default(now())
+  source      DataSource @relation(fields: [sourceId], references: [id])
+
+  @@map("threat_data")
+}
+
+model CountryFile {
+  id          String   @id @default(cuid())
+  countryCode String   @unique
+  countryName String
+  fileName    String
+  filePath    String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model RansomwareGroupsData {
+  id                String    @id @default(cuid())
+  group             String    @unique
+  altname           String?
+  victims           Int
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  added_date        DateTime?
+  description       String?
+  firstseen         DateTime?
+  has_negotiations  Boolean   @default(false)
+  has_ransomnote    Boolean   @default(false)
+  lastseen          DateTime?
+  negotiation_count Int       @default(0)
+  ransomnotes_count Int       @default(0)
+  tools             Json?
+  ttps              String[]
+  url               String?
+  vulnerabilities   String[]
+  locations         Json?
+
+  @@map("ransomware_groups_data")
+}
+
+model RansomwareVictimsData {
+  id               String    @id @default(cuid())
+  discovered       DateTime
+  description      String?
+  website          String?
+  postUrl          String?
+  country          String?
+  activity         String?
+  duplicates       String[]
+  extrainfos       String[]
+  screenshot       String?
+  infostealer      String?
+  press            String?
+  ransomwareLiveId String    @unique
+  permalink        String?
+  attackDate       DateTime?
+  victim           String
+  group            String
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@map("ransomware_victims_data")
+}
+
+model MonitoredService {
+  id            String    @id @default(cuid())
+  serviceName   String    @unique
+  serviceType   String
+  endpoint      String?
+  lastCheck     DateTime?
+  isActive      Boolean   @default(true)
+  checkInterval Int       @default(300)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@map("monitored_services")
+}
+
+model AlertSource {
+  id            String              @id @default(cuid())
+  key           String              @unique
+  name          String
+  description   String?
+  serviceName   String?
+  isActive      Boolean             @default(true)
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  subscriptions AlertSubscription[]
+
+  @@map("alert_sources")
+}
+
+model TelegramMonitoredChannel {
+  id          String   @id @default(cuid())
+  username    String   @unique
+  channelId   String?
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("telegram_monitored_channels")
+}
+
+model UserNotificationChannel {
+  id            String              @id @default(cuid())
+  userId        String
+  type          String
+  label         String?
+  botToken      String?
+  chatIds       String[]
+  isActive      Boolean             @default(true)
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  alertHistory  AlertHistory[]
+  subscriptions AlertSubscription[]
+
+  @@index([userId, type])
+  @@map("user_notification_channels")
+}
+
+model AlertSubscription {
+  id                String                  @id @default(cuid())
+  userId            String
+  sourceId          String
+  name              String
+  enabled           Boolean                 @default(true)
+  deliveryChannelId String
+  settings          Json
+  lastTriggered     DateTime?
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
+  alertHistory      AlertHistory[]
+  deliveryChannel   UserNotificationChannel @relation(fields: [deliveryChannelId], references: [id])
+  source            AlertSource             @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("alert_subscriptions")
+}
+
+model AlertHistory {
+  id                String                   @id @default(cuid())
+  incidentId        String
+  serviceSource     String
+  country           String
+  victim            String
+  group             String
+  severity          String?
+  telegramSent      Boolean                  @default(false)
+  telegramMessageId String?
+  sentAt            DateTime?
+  createdAt         DateTime                 @default(now())
+  deliveryChannelId String?
+  deliveryStatus    String?
+  errorMessage      String?
+  eventId           String?
+  payload           Json?
+  sourceKey         String?
+  subscriptionId    String?
+  userId            String?
+  deliveryChannel   UserNotificationChannel? @relation(fields: [deliveryChannelId], references: [id])
+  subscription      AlertSubscription?       @relation(fields: [subscriptionId], references: [id])
+
+  @@unique([subscriptionId, eventId])
+  @@index([userId])
+  @@map("alert_history")
+}
+
+model TelegramChannelMessage {
+  id          String   @id @default(cuid())
+  channelName String
+  content     String
+  date        DateTime
+  messageId   String?  @unique
+  channelId   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([channelName, date])
+  @@map("telegram_channel_messages")
+}
+
+model ActorsData {
+  id                 String      @id @default(cuid())
+  name               String
+  identificatedDate  DateTime?
+  subGroup           Boolean     @default(false)
+  description        String?
+  country            String?
+  descriptionMethods String?
+  methods            String[]
+  aliases            String[]
+  hitos              String[]
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
+  hitosDatas         HitosData[]
+
+  @@map("actors_data")
+}
+
+model HitosData {
+  id           String     @id @default(cuid())
+  date         DateTime
+  description  String
+  target       String
+  link         String?
+  links        String[]   @default([])
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  actorsDataId String
+  carriedOutBy ActorsData @relation(fields: [actorsDataId], references: [id])
+
+  @@map("hitos_data")
+}
+
+model FakeNewsData {
+  id                String    @id @default(cuid())
+  title             String
+  identificatedDate DateTime?
+  origin            String
+  target            String?
+  methods           String?
+  consequences      String[]
+  links             String[]
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@map("fake_news_data")
+}
+
+model VulnCve {
+  id               String    @id
+  cveId            String?
+  sources          String[]
+  title            String?
+  description      String?
+  cvssScore        Decimal?  @db.Decimal(3, 1)
+  cvssVector       String?
+  cvssVersion      String?
+  severity         String?
+  epssScore        Decimal?  @db.Decimal(8, 5)
+  epssPercentile   Decimal?  @db.Decimal(8, 5)
+  isKev            Boolean   @default(false)
+  kevDate          DateTime? @db.Date
+  kevDueDate       DateTime? @db.Date
+  kevRansomware    Boolean   @default(false)
+  affectedPackages Json?
+  references       Json?
+  publishedAt      DateTime?
+  modifiedAt       DateTime?
+  rawNvd           Json?
+  rawKev           Json?
+  rawGithub        Json?
+  rawOsv           Json?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([severity])
+  @@index([isKev])
+  @@index([modifiedAt(sort: Desc)])
+  @@index([cvssScore(sort: Desc)])
+  @@index([epssScore(sort: Desc)])
+  @@index([cveId])
+  @@index([sources], type: Gin)
+  @@map("vuln_cves")
+}
+
+model VulnSyncState {
+  source     String    @id
+  lastSyncAt DateTime?
+  lastCursor String?
+  lastCount  Int?
+  errorCount Int       @default(0)
+  lastError  String?
+  updatedAt  DateTime  @updatedAt
+
+  @@map("vuln_sync_state")
+}
+
+enum VulnEnvironment {
+  APP
+  IT
+  OT
+  OTHER
+}
+
+model VulnWatchProfile {
+  id          String               @id @default(cuid())
+  userId      String
+  name        String
+  description String?
+  environment VulnEnvironment      @default(OTHER)
+  items       VulnWatchProfileItem[]
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+
+  @@unique([userId, name])
+  @@index([userId])
+  @@map("vuln_watch_profiles")
+}
+
+model VulnWatchProfileItem {
+  id        String           @id @default(cuid())
+  profileId String
+  label     String
+  query     String
+  vendor    String?
+  product   String?
+  ecosystem String?
+  profile   VulnWatchProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId])
+  @@map("vuln_watch_profile_items")
+}
+
+// Operational third-party credentials managed from the admin panel.
+// Value is AES-256-GCM encrypted (iv:authTag:ciphertext base64) — never plaintext.
+// Bootstrap secrets (DATABASE_URL, JWT_SECRET, SECRETS_MASTER_KEY) stay in env by design.
+model PlatformSecret {
+  key            String   @id // e.g. nvd_api_key, github_token, ransomware_api_key, telegram_session_string
+  encryptedValue String
+  updatedAt      DateTime @updatedAt
+  updatedBy      String?
+
+  @@map("platform_secrets")
+}
+
+model cve_data {
+  id               String         @id
+  cveId            String         @unique
+  description      String
+  publishedDate    DateTime
+  lastModifiedDate DateTime
+  cvssV3Score      Float?
+  cvssV3Severity   String?
+  cvssV3Vector     String?
+  cvssV2Score      Float?
+  cvssV2Severity   String?
+  cvssV2Vector     String?
+  cvssV4Score      Float?
+  cvssV4Severity   String?
+  cweIds           String[]
+  references       Json?
+  rawData          Json
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime
+  cve_products     cve_products[]
+
+  @@index([cveId])
+  @@index([cvssV3Severity])
+  @@index([lastModifiedDate])
+  @@index([publishedDate])
+}
+
+model cve_products {
+  id        String   @id
+  cveId     String
+  vendor    String
+  product   String
+  version   String?
+  cpeName   String
+  affected  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime
+  cve_data  cve_data @relation(fields: [cveId], references: [cveId], onDelete: Cascade)
+
+  @@unique([cveId, cpeName])
+  @@index([vendor, product])
+}
+
+model AiConversation {
+  id        Int                     @id @default(autoincrement())
+  userId    String                  @default("default-user")
+  title     String
+  active    Boolean                 @default(true)
+  createdAt DateTime                @default(now())
+  messages  AiConversationMessage[]
+
+  @@map("ai_conversations")
+}
+
+model AiConversationMessage {
+  id             String         @id @default(cuid())
+  conversationId Int
+  role           String
+  content        String
+  timestamp      DateTime       @default(now())
+  conversation   AiConversation @relation(fields: [conversationId], references: [id])
+
+  @@map("ai_conversation_messages")
+}
+
+model AiSyncState {
+  source     String    @id
+  lastSyncAt DateTime?
+  lastCount  Int       @default(0)
+  updatedAt  DateTime  @updatedAt
+
+  @@map("ai_sync_states")
+}

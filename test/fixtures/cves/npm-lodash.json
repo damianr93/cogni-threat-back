@@ -1,0 +1,10 @@
+{
+  "id": "CVE-2024-LODASH",
+  "cveId": "CVE-2024-LODASH",
+  "title": "lodash prototype pollution",
+  "description": "A vulnerability in lodash package",
+  "severity": "HIGH",
+  "affectedPackages": [
+    { "name": "lodash", "ecosystem": "npm", "versions": ["4.17.20"] }
+  ]
+}

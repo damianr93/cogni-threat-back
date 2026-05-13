@@ -1,0 +1,19 @@
+{
+  "id": "CVE-2024-S7",
+  "cveId": "CVE-2024-S7",
+  "title": "Industrial controller vulnerability",
+  "severity": "CRITICAL",
+  "rawNvd": {
+    "configurations": [
+      {
+        "nodes": [
+          {
+            "cpeMatch": [
+              { "criteria": "cpe:2.3:a:siemens:s7-1500:*:*:*:*:*:*:*" }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

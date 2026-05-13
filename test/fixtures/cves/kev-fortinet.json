@@ -1,0 +1,7 @@
+{
+  "id": "CVE-2024-KEV",
+  "cveId": "CVE-2024-KEV",
+  "title": "Fortinet — FortiOS",
+  "severity": "CRITICAL",
+  "isKev": true
+}

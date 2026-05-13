@@ -1,0 +1,9 @@
+{
+  "id": "CVE-2024-REQUESTS",
+  "cveId": "CVE-2024-REQUESTS",
+  "title": "requests HTTP library issue",
+  "severity": "HIGH",
+  "affectedPackages": [
+    { "name": "requests", "ecosystem": "PyPI", "versions": ["2.28.0"] }
+  ]
+}

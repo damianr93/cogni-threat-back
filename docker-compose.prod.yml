@@ -1,0 +1,87 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg15
+    container_name: cogni-threat-db-prod
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_DATABASE:-cogni_threat}
+      POSTGRES_USER: ${DB_USERNAME:-cogni_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - cogni-threat-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-cogni_user} -d ${DB_DATABASE:-cogni_threat}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  cogni-threat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cogni-threat-api-prod
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "${API_HOST_PORT:-3000}:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://${DB_USERNAME:-cogni_user}:${DB_PASSWORD:?DB_PASSWORD is required}@postgres:5432/${DB_DATABASE:-cogni_threat}
+      - API_PORT=${API_PORT:-3000}
+      - API_HOST=${API_HOST:-0.0.0.0}
+      - CORS_ORIGIN=${CORS_ORIGIN:?CORS_ORIGIN is required}
+      - ALLOWED_IPS=${ALLOWED_IPS}
+      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET is required}
+      - SECRETS_MASTER_KEY=${SECRETS_MASTER_KEY:?SECRETS_MASTER_KEY is required}
+      - ADMIN_EMAIL=${ADMIN_EMAIL:?ADMIN_EMAIL is required}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:?ADMIN_PASSWORD is required}
+      - RANSOMWARE_API_URL=${RANSOMWARE_API_URL:-https://api.ransomware.live}
+      - RANSOMWARE_API_KEY=${RANSOMWARE_API_KEY}
+      - RANSOMWARE_TIMEOUT=${RANSOMWARE_TIMEOUT:-60000}
+      - RANSOMWARE_RETRY_ATTEMPTS=${RANSOMWARE_RETRY_ATTEMPTS:-3}
+      - NVD_API_URL=${NVD_API_URL:-https://services.nvd.nist.gov/rest/json}
+      - NVD_API_KEY=${NVD_API_KEY}
+      - NVD_REQUEST_DELAY=${NVD_REQUEST_DELAY:-200}
+      - TELEGRAM_API_ID=${TELEGRAM_API_ID}
+      - TELEGRAM_API_HASH=${TELEGRAM_API_HASH}
+      - TELEGRAM_CHANNEL_USERNAME=${TELEGRAM_CHANNEL_USERNAME}
+      - TELEGRAM_SESSION_STRING=${TELEGRAM_SESSION_STRING}
+      - BOT_TOKEN=${BOT_TOKEN}
+    networks:
+      - cogni-threat-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  cogni-threat-front:
+    build:
+      context: ../cogni-threat-front
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL:-/api}
+    container_name: cogni-threat-front-prod
+    restart: unless-stopped
+    ports:
+      - "${FRONT_PORT:-80}:80"
+    depends_on:
+      cogni-threat:
+        condition: service_healthy
+    networks:
+      - cogni-threat-network
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  cogni-threat-network:
+    driver: bridge

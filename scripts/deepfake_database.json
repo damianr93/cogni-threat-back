@@ -1,0 +1,177 @@
+[
+  {
+    "origin": "Empresas y entidades rusas y chinas (Rybar, Fundación para el Apoyo y Protección de los Derechos de los Compatriotas, Centro de Experiencia Geopolítica)",
+    "target": "Reino Unido y Europa",
+    "methods": "Difusión mediante diversos medios de narrativas de desinformación (no utilizaron deepfakes)",
+    "consequences": [
+      "Minar el respaldo internacional a la resistencia ucraniana",
+      "Erosionar la confianza en instituciones democráticas y operadores políticos en Europa y América del Norte",
+      "Generar polarización y desconcierto en la sociedad",
+      "Afectar la cooperación internacional",
+      "Vulnerar infraestructuras sensibles"
+    ],
+    "links": [
+      "https://www.eleconomista.com.mx/amp/internacionales/reino-unido-sanciona-entidades-rusas-chinas-desinformacion-ciberamenazas-20251209-790476.html",
+      "https://www.infobae.com/america/mundo/2025/12/09/reino-unido-sanciono-a-estructuras-de-propaganda-rusa-y-a-empresas-chinas-por-vinculos-en-campanas-de-guerra-hibrida/"
+    ]
+  },
+  {
+    "origin": "Donald Trump y su gobierno",
+    "target": "Colombia y Gustavo Petro",
+    "methods": "Retiro de Colombia de la lista de países que participan en la lucha contra el narcotráfico, acusación al presidente de ser líder narcotraficante sin presentar pruebas",
+    "consequences": [
+      "Profundización de la tensión en las relaciones entre Petro y Trump",
+      "Deslegitimación de un gobierno democráticamente elegido",
+      "Amenaza de ofensiva terrestre contra suelo colombiano",
+      "Riesgo de ataques contra embarcaciones u objetivos colombianos"
+    ],
+    "links": [
+      "https://www.lanacion.com.ar/agencias/petro-acusa-a-trump-de-desinformacion-sobre-colombia-nid11122025/"
+    ]
+  },
+  {
+    "origin": "Posiblemente Rusia",
+    "target": "Ucrania",
+    "methods": "Deepfake mostrando a un soldado ucraniano llorando y con temor de ir a la guerra. Grok no pudo identificarlo como deepfake, pero Hive Moderation arrojó 99% de IA. Inconsistencias: edad del soldado (23 años vs normativa de 25 años), casco y nombre en uniforme no ajustados al estándar ucraniano, problemas en forma de dientes",
+    "consequences": [
+      "Desmotivación de soldados ucranianos",
+      "Desconcierto sobre posibles modificaciones en la normativa de edad para servicio militar"
+    ],
+    "links": [
+      "https://www.diariovasco.com/egia-guztia/detector/falso-video-soldado-ucraniano-llorando-revela-poder-inteligencia-artificial-propaganda-20251202121020-nt.html?ref=https%3A%2F%2Fwww.diariovasco.com%2Fegia-guztia%2Fdetector%2Ffalso-video-soldado-ucraniano-llorando-revela-poder-inteligencia-artificial-propaganda-20251202121020-nt.html",
+      "https://maldita.es/malditobulo/20251105/video-soldado-ucraniano-llorando-movilizacion/"
+    ]
+  },
+  {
+    "origin": "Usuario de Instagram @eureka4u_",
+    "target": "Om Birla (Orador de la Cámara Baja del Parlamento de India - Lok Sabha Speaker)",
+    "methods": "Deepfake anunciando un esquema de apoyo económico falso. Detectado con herramienta InVid (95% de IA). Video original existía pero sin referencia al esquema económico. Sincronización de labios sugería manipulación según experto Azhar Machwe",
+    "consequences": [
+      "Erosión de la confianza en el gobierno por parte de familias que esperaban asistencia financiera prometida"
+    ],
+    "links": [
+      "https://www.vishvasnews.com/english/ai-check/fact-check-deepfake-video-of-om-birla-falsely-claims-that-he-announced-a-plan-to-give-rs-12-000/"
+    ]
+  },
+  {
+    "origin": "China, posiblemente servicios de inteligencia",
+    "target": "Carmen Lau, Chloe Cheung, Chung Ching Kwong (activistas por la democracia de Hong Kong en Reino Unido)",
+    "methods": "Deepfake y difusión de imágenes alteradas mostrando el rostro de Lau superpuesto a cuerpos desnudos o en ropa interior, incluyendo imágenes falsas realizando actos sexuales. Seguimiento físico por hombres chinos en Reino Unido",
+    "consequences": [
+      "Destrucción de credibilidad de las activistas",
+      "Humillación y degradación para forzar retiro de la vida pública",
+      "Tensión entre activistas perseguidos y gobierno del Reino Unido",
+      "Negativa del Ministerio del Interior británico a establecer línea directa de apoyo",
+      "Aval implícito a China para continuar acosando a personas consideradas traidoras"
+    ],
+    "links": [
+      "https://archive.is/EGtu1"
+    ]
+  },
+  {
+    "origin": "Rusia",
+    "target": "Friedrich Merz (Canciller de Alemania) y Robert Habeck (ex vicecanciller), candidatos a elecciones de febrero 2025",
+    "methods": "Manipulación de información, sabotaje y ciberataques (no deepfakes). Campañas presentes desde 2024",
+    "consequences": [
+      "Dividir a la sociedad alemana",
+      "Fomentar la desconfianza",
+      "Provocar el rechazo y debilitar la confianza en instituciones democráticas",
+      "Tensión en relaciones diplomáticas entre Rusia y Alemania/Europa",
+      "Más sanciones para Rusia por parte de Europa",
+      "Riesgo para la asistencia europea a Ucrania si los ataques aumentan"
+    ],
+    "links": [
+      "https://www.lanacion.com.ar/el-mundo/alemania-acusa-a-una-oscura-agencia-de-inteligencia-rusa-de-escalar-su-guerra-hibrida-y-convoca-al-nid12122025/"
+    ]
+  },
+  {
+    "origin": "Usuario @mktyaggi (posiblemente ciudadano de India)",
+    "target": "Anthony Albanese (Primer ministro australiano) y ciudadanos pakistaníes",
+    "methods": "Deepfake del primer ministro australiano a partir de imágenes de conferencia de prensa de AGO22 sobre legislación de cambio climático. Detectado con Hiya Deepfake (voz identificada como deepfake) y Deepfake-o-meter de Universidad de Buffalo (evidencia significativa de manipulación de IA en sincronización labial)",
+    "consequences": [
+      "Perjuicio en relaciones entre Pakistán y Australia",
+      "Posibles medidas similares de Pakistán contra australianos",
+      "Malestar en Islamabad",
+      "Obligación de Canberra a emitir aclaraciones oficiales",
+      "Problemas entre nativos e inmigrantes pakistaníes en Australia",
+      "Fomento de polarización y posibles actos de violencia",
+      "Profundización de conflictos entre India y Pakistán si se confirma autoría india"
+    ],
+    "links": [
+      "https://www.boomlive.in/fact-check/bondi-beach-attack-australian-pm-anthony-albanese-cancel-visas-of-pakistanis-ai-generated-video-viral-fact-check-30273"
+    ]
+  },
+  {
+    "origin": "Usuario @ShaykhSulaiman (posiblemente ciudadano de Pakistán)",
+    "target": "Chris Minns (Primer ministro de Nueva Gales del Sur) e India",
+    "methods": "Deepfake del primer ministro de NSW a partir de imágenes de su discurso tras atentado en Bondi Beach. Detectado con Hiya Deepfake Voice Detector (puntuación de autenticidad 1/100). Discurso original del 14DIC25 no mencionaba atacantes de origen indio ni conversación con ministro indio S. Jaishankar",
+    "consequences": [
+      "Tensión en relaciones entre India y Australia",
+      "Obligación del gobierno australiano de emitir declaraciones tranquilizadoras",
+      "Problemas entre nativos e inmigrantes indios en Australia",
+      "Fomento de polarización y posibles actos de violencia",
+      "Profundización de conflictos entre Pakistán e India si se confirma autoría pakistaní"
+    ],
+    "links": [
+      "https://www.boomlive.in/fact-check/fake-news-viral-video-ai-nsw-premier-bondi-beach-attack-australia-attackers-indian-factcheck-30272"
+    ]
+  },
+  {
+    "origin": "Usuario @Aqqssaa12 (posiblemente ciudadano de Pakistán)",
+    "target": "Assaduddin Owaisi (Diputado de Hyderabad, India) e India",
+    "methods": "Deepfake a partir de videos verídicos de periodista Palki Sharma (transmisión del 25NOV25 sobre Trump y Taiwán) y del diputado (entrevista del 11OCT25 sobre lanzamiento de zapato contra presidente del Tribunal Supremo). Audios tergiversados. Verificado por India Today Fact Check mediante búsqueda inversa de fotogramas",
+    "consequences": [
+      "Erosión de imagen pública del diputado",
+      "Implicación de que conocía a los culpables del ataque",
+      "Tensión en relaciones diplomáticas entre India y Australia",
+      "Profundización de conflictos entre India y Pakistán si se confirma autoría pakistaní"
+    ],
+    "links": [
+      "https://www.indiatoday.in/fact-check/story/fact-check-video-of-owaisi-saying-he-knew-bondi-beach-shooters-is-a-deepfake-2836898-2025-12-16"
+    ]
+  },
+  {
+    "origin": "Grupo de ciberdelincuentes",
+    "target": "Ciudadanos de India (caso reportado: mujer de 54 años de CV Raman Nagar que perdió más de 33 lakh de rupias)",
+    "methods": "Deepfake de la ministra de Finanzas Nirmala Sitharaman difundido por redes sociales (incluyendo Facebook). Video incitaba a registrarse en página falsa solicitando datos bancarios y pagos. Envío de correos electrónicos aparentemente del Banco de la Reserva de la India",
+    "consequences": [
+      "Problemas reputacionales para la ministra de Finanzas",
+      "Erosión de confianza en figura pública",
+      "Pérdidas económicas de víctimas",
+      "Posibles disturbios o movilizaciones exigiendo respuesta de autoridades"
+    ],
+    "links": [
+      "https://timesofindia.indiatimes.com/city/bengaluru/deepfake-of-nirmala-sitharaman-costs-woman-rs-33-lakh-in-bengaluru/articleshow/125875466.cms"
+    ]
+  },
+  {
+    "origin": "No especificado (publicado en Facebook)",
+    "target": "Francia y su gobierno (Emmanuel Macron)",
+    "methods": "Video con IA utilizando códigos de canal de noticias 24 horas, mostrando periodista anunciando golpe de Estado en Francia dirigido por coronel no identificado y posible caída de Macron. Facebook se negó a removerlo considerando que no afectaba sus políticas",
+    "consequences": [
+      "Potencial caos al interior del país",
+      "Posibles levantamientos o disturbios",
+      "Erosión de confianza en instituciones y gobierno",
+      "Desconfianza internacional (caso: homólogo africano llamó consternado a Macron)",
+      "Posible desestabilización del gobierno de Macron por actores nacionales e internacionales"
+    ],
+    "links": [
+      "https://es.euronews.com/2025/12/17/golpe-de-estado-en-francia-las-noticias-falsas-que-facebook-se-niega-eliminar"
+    ]
+  },
+  {
+    "origin": "Gustavo Petro (Presidente de Colombia)",
+    "target": "Gobierno de Argentina, especialmente Javier Milei",
+    "methods": "Fake news: Compartió en X (@petrogustavo) video mostrando supuestos saqueos en afueras de Buenos Aires. Video real era de reportaje de cadena chilena de AGO23 previo a elecciones presidenciales. Petro no ha eliminado el video ni aclarado el error",
+    "consequences": [
+      "Profundización de grieta ideológica entre Milei y Petro",
+      "Potenciales turbulencias en Argentina si se cree el mensaje",
+      "Presión sobre gobierno argentino para aclarar la situación",
+      "Cuestionamientos sobre eficacia del equipo de comunicación de Petro",
+      "Erosión de imagen pública de Petro a nivel local e internacional"
+    ],
+    "links": [
+      "https://www.infobae.com/colombia/2025/12/19/gustavo-petro-divulga-fake-news-sobre-argentina-hay-saqueos-en-las-afueras-de-buenos-aires/"
+    ]
+  }
+]
