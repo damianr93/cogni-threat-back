@@ -12,6 +12,13 @@ import {
 } from './entity-serializers';
 
 const BATCH_SIZE = 50;
+// Ollama procesa un modelo a la vez por GPU — este delay entre lotes le deja
+// hueco a requests interactivos de chat mientras la ingesta masiva corre.
+const INTER_BATCH_DELAY_MS = 300;
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 @Injectable()
 export class IngestionService implements OnApplicationBootstrap {
@@ -54,13 +61,14 @@ export class IngestionService implements OnApplicationBootstrap {
     this.logger.log('Iniciando ingesta incremental de todas las fuentes');
 
     try {
-      await Promise.all([
-        this.ingestRansomwareGroups(),
-        this.ingestRansomwareVictims(),
-        this.ingestVulnCves(),
-        this.ingestActors(),
-        this.ingestTelegramMessages(),
-      ]);
+      // Secuencial (no Promise.all): correrlas en paralelo satura el único
+      // GPU/modelo de Ollama y deja sin respuesta al chat interactivo mientras
+      // dura la ingesta masiva.
+      await this.ingestRansomwareGroups();
+      await this.ingestRansomwareVictims();
+      await this.ingestVulnCves();
+      await this.ingestActors();
+      await this.ingestTelegramMessages();
     } finally {
       this.running = false;
       this.logger.log(
@@ -102,6 +110,7 @@ export class IngestionService implements OnApplicationBootstrap {
         });
         indexed++;
       }
+      await delay(INTER_BATCH_DELAY_MS);
     }
 
     await this.upsertSyncState('ransomware:groups', indexed);
@@ -143,6 +152,7 @@ export class IngestionService implements OnApplicationBootstrap {
         });
         indexed++;
       }
+      await delay(INTER_BATCH_DELAY_MS);
     }
 
     await this.upsertSyncState('ransomware:victims', indexed);
@@ -182,6 +192,7 @@ export class IngestionService implements OnApplicationBootstrap {
         });
         indexed++;
       }
+      await delay(INTER_BATCH_DELAY_MS);
     }
 
     await this.upsertSyncState('vuln-monitor:cves', indexed);
@@ -220,6 +231,7 @@ export class IngestionService implements OnApplicationBootstrap {
       }));
       await this.vectors.insertChunks(toInsert);
       indexed++;
+      await delay(INTER_BATCH_DELAY_MS);
     }
 
     await this.upsertSyncState('actors', indexed);
@@ -260,6 +272,7 @@ export class IngestionService implements OnApplicationBootstrap {
         });
         indexed++;
       }
+      await delay(INTER_BATCH_DELAY_MS);
     }
 
     await this.upsertSyncState('telegram:messages', indexed);
