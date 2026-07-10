@@ -4,13 +4,14 @@ import type {
   VulnCve,
   ActorsData,
   HitosData,
-  FakeNewsData,
   TelegramChannelMessage,
 } from '@prisma/client';
 
 function fmt(d: Date | null | undefined): string {
   if (!d) return '';
-  return d instanceof Date ? d.toISOString().split('T')[0] : String(d).split('T')[0];
+  return d instanceof Date
+    ? d.toISOString().split('T')[0]
+    : String(d).split('T')[0];
 }
 
 function lines(...parts: (string | undefined | null | false)[]): string {
@@ -24,7 +25,6 @@ export const sourceId = {
   ransomwareVictim: (id: string) => `ransomware:victim:${id}`,
   vulnCve: (id: string) => `vuln-monitor:cve:${id}`,
   actor: (id: string) => `actors:actor:${id}`,
-  fakeNews: (id: string) => `fake-news:item:${id}`,
   telegramMsg: (id: string) => `telegram:msg:${id}`,
 };
 
@@ -35,7 +35,6 @@ const OPAQUE_ID = /^c[a-z0-9]{20,}$/i;
 const SUMMARY_LABEL_PATTERNS = [
   /^Actor de amenaza: (.+?)(?:\n|$)/,
   /^Actor: (.+?) \(continuación/,
-  /^Desinformación \/ Fake News: (.+?)(?:\n|$)/,
   /^Víctima ransomware: (.+?)(?:\n|$)/,
   /^Vulnerabilidad: (.+?)(?:\n|$)/,
   /^Canal Telegram: (.+?)(?:\n|$)/,
@@ -75,7 +74,9 @@ export function serializeRansomwareGroup(g: RansomwareGroupsData): string {
     g.vulnerabilities && g.vulnerabilities.length > 0
       ? `Vulnerabilidades explotadas: ${g.vulnerabilities.join(', ')}`
       : null,
-    g.has_negotiations ? `Realiza negociaciones: Sí (${g.negotiation_count} registradas)` : null,
+    g.has_negotiations
+      ? `Realiza negociaciones: Sí (${g.negotiation_count} registradas)`
+      : null,
     g.ransomnotes_count > 0 ? `Notas de rescate: ${g.ransomnotes_count}` : null,
     g.url ? `URL del grupo: ${g.url}` : null,
   );
@@ -100,14 +101,20 @@ export function serializeVulnCve(c: VulnCve): string {
   const severity = c.severity ?? 'DESCONOCIDA';
   const cvssScore = c.cvssScore != null ? Number(c.cvssScore).toFixed(1) : null;
   const epssScore = c.epssScore != null ? Number(c.epssScore).toFixed(5) : null;
-  const epssPerc = c.epssPercentile != null ? (Number(c.epssPercentile) * 100).toFixed(1) : null;
+  const epssPerc =
+    c.epssPercentile != null
+      ? (Number(c.epssPercentile) * 100).toFixed(1)
+      : null;
 
   let affectedStr = '';
   if (c.affectedPackages) {
     try {
       const pkgs = c.affectedPackages as any[];
       if (Array.isArray(pkgs) && pkgs.length > 0) {
-        const top = pkgs.slice(0, 5).map((p: any) => `${p.vendor ?? ''}/${p.product ?? ''}`).join(', ');
+        const top = pkgs
+          .slice(0, 5)
+          .map((p: any) => `${p.vendor ?? ''}/${p.product ?? ''}`)
+          .join(', ');
         affectedStr = `Productos afectados: ${top}${pkgs.length > 5 ? ` (y ${pkgs.length - 5} más)` : ''}`;
       }
     } catch {
@@ -119,7 +126,9 @@ export function serializeVulnCve(c: VulnCve): string {
     `Vulnerabilidad: ${c.cveId ?? c.id}`,
     c.title ? `Título: ${c.title}` : null,
     c.description ? `Descripción: ${c.description}` : null,
-    cvssScore ? `CVSS Score: ${cvssScore} (${severity}) — ${c.cvssVersion ?? ''}` : null,
+    cvssScore
+      ? `CVSS Score: ${cvssScore} (${severity}) — ${c.cvssVersion ?? ''}`
+      : null,
     c.cvssVector ? `Vector CVSS: ${c.cvssVector}` : null,
     c.isKev
       ? `KEV (Known Exploited Vulnerability): Sí, fecha: ${fmt(c.kevDate)}${c.kevDueDate ? `, vencimiento: ${fmt(c.kevDueDate)}` : ''}`
@@ -128,20 +137,30 @@ export function serializeVulnCve(c: VulnCve): string {
     epssScore ? `EPSS Score: ${epssScore} (percentil ${epssPerc}%)` : null,
     c.publishedAt ? `Publicado: ${fmt(c.publishedAt)}` : null,
     c.modifiedAt ? `Última modificación: ${fmt(c.modifiedAt)}` : null,
-    c.sources && c.sources.length > 0 ? `Fuentes de datos: ${c.sources.join(', ')}` : null,
+    c.sources && c.sources.length > 0
+      ? `Fuentes de datos: ${c.sources.join(', ')}`
+      : null,
     affectedStr || null,
   );
 }
 
-export function serializeActor(a: ActorsData & { hitosDatas: HitosData[] }): string[] {
+export function serializeActor(
+  a: ActorsData & { hitosDatas: HitosData[] },
+): string[] {
   const header = lines(
     `Actor de amenaza: ${a.name}`,
-    a.aliases && a.aliases.length > 0 ? `Aliases: ${a.aliases.join(', ')}` : null,
+    a.aliases && a.aliases.length > 0
+      ? `Aliases: ${a.aliases.join(', ')}`
+      : null,
     a.country ? `País de origen: ${a.country}` : null,
     a.identificatedDate ? `Identificado: ${fmt(a.identificatedDate)}` : null,
     a.description ? `Descripción: ${a.description}` : null,
-    a.descriptionMethods ? `Descripción de métodos: ${a.descriptionMethods}` : null,
-    a.methods && a.methods.length > 0 ? `Técnicas/métodos: ${a.methods.join(', ')}` : null,
+    a.descriptionMethods
+      ? `Descripción de métodos: ${a.descriptionMethods}`
+      : null,
+    a.methods && a.methods.length > 0
+      ? `Técnicas/métodos: ${a.methods.join(', ')}`
+      : null,
   );
 
   if (a.hitosDatas.length === 0) return [header];
@@ -167,20 +186,6 @@ export function serializeActor(a: ActorsData & { hitosDatas: HitosData[] }): str
   }
 
   return chunks;
-}
-
-export function serializeFakeNews(f: FakeNewsData): string {
-  return lines(
-    `Desinformación / Fake News: ${f.title}`,
-    f.identificatedDate ? `Identificada: ${fmt(f.identificatedDate)}` : null,
-    `Origen: ${f.origin}`,
-    f.target ? `Objetivo: ${f.target}` : null,
-    f.methods ? `Métodos: ${f.methods}` : null,
-    f.consequences && f.consequences.length > 0
-      ? `Consecuencias: ${f.consequences.join('; ')}`
-      : null,
-    f.links && f.links.length > 0 ? `Referencias: ${f.links.slice(0, 3).join(', ')}` : null,
-  );
 }
 
 export function serializeTelegramMessage(m: TelegramChannelMessage): string {

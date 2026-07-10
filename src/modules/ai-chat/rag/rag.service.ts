@@ -9,7 +9,6 @@ Tienes acceso a datos actualizados de:
 - Grupos ransomware y sus víctimas (fuente: ransomware.live)
 - Vulnerabilidades CVE con puntuación CVSS, EPSS, KEV (NIST NVD, GitHub Advisory, OSV)
 - Actores de amenaza APT y sus hitos documentados
-- Desinformación y fake news detectadas en ciberseguridad
 - Mensajes de canales Telegram monitoreados
 
 Responde siempre en español. Sé preciso y factual.
@@ -43,7 +42,9 @@ export class RagService {
     try {
       queryEmbedding = await this.embeddings.generateQueryEmbedding(question);
     } catch (err: any) {
-      this.logger.error(`Error generando embedding de consulta: ${err?.message}`);
+      this.logger.error(
+        `Error generando embedding de consulta: ${err?.message}`,
+      );
       throw err;
     }
 
@@ -70,7 +71,9 @@ export class RagService {
     ];
 
     if (chunks.length === 0) {
-      this.logger.warn(`Sin resultados en el índice vectorial para: "${question.slice(0, 80)}"`);
+      this.logger.warn(
+        `Sin resultados en el índice vectorial para: "${question.slice(0, 80)}"`,
+      );
     }
 
     const response = await this.chat.chat(messages);
@@ -78,7 +81,12 @@ export class RagService {
   }
 
   private buildContext(
-    chunks: Array<{ text: string; source: string; category: string; distance: number }>,
+    chunks: Array<{
+      text: string;
+      source: string;
+      category: string;
+      distance: number;
+    }>,
   ): string {
     return chunks
       .map((c) => `[${c.category}] ${c.text}\n(fuente: ${c.source})`)

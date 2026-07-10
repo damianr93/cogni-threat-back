@@ -7,7 +7,6 @@ import {
   serializeRansomwareVictim,
   serializeVulnCve,
   serializeActor,
-  serializeFakeNews,
   serializeTelegramMessage,
   sourceId,
 } from './entity-serializers';
@@ -27,12 +26,16 @@ export class IngestionService implements OnApplicationBootstrap {
 
   async onApplicationBootstrap() {
     if (!this.vectors.isReady()) {
-      this.logger.warn('pgvector no disponible — ingesta diferida hasta que la extensión esté instalada');
+      this.logger.warn(
+        'pgvector no disponible — ingesta diferida hasta que la extensión esté instalada',
+      );
       return;
     }
     const total = await this.vectors.countAll();
     if (total === 0) {
-      this.logger.log('Índice vectorial vacío — iniciando ingesta completa inicial');
+      this.logger.log(
+        'Índice vectorial vacío — iniciando ingesta completa inicial',
+      );
       void this.ingestAll();
     }
   }
@@ -56,12 +59,13 @@ export class IngestionService implements OnApplicationBootstrap {
         this.ingestRansomwareVictims(),
         this.ingestVulnCves(),
         this.ingestActors(),
-        this.ingestFakeNews(),
         this.ingestTelegramMessages(),
       ]);
     } finally {
       this.running = false;
-      this.logger.log(`Ingesta completa en ${((Date.now() - start) / 1000).toFixed(1)}s`);
+      this.logger.log(
+        `Ingesta completa en ${((Date.now() - start) / 1000).toFixed(1)}s`,
+      );
     }
   }
 
@@ -116,7 +120,9 @@ export class IngestionService implements OnApplicationBootstrap {
       return;
     }
 
-    this.logger.log(`ransomware:victims — indexando ${records.length} víctimas`);
+    this.logger.log(
+      `ransomware:victims — indexando ${records.length} víctimas`,
+    );
     let indexed = 0;
 
     for (let i = 0; i < records.length; i += BATCH_SIZE) {
@@ -220,45 +226,6 @@ export class IngestionService implements OnApplicationBootstrap {
     this.logger.log(`actors — ${indexed} actores indexados`);
   }
 
-  async ingestFakeNews(): Promise<void> {
-    const since = await this.getLastSyncAt('fake-news');
-    const records = await this.prisma.fakeNewsData.findMany({
-      where: since ? { updatedAt: { gt: since } } : undefined,
-      orderBy: { updatedAt: 'asc' },
-    });
-
-    if (records.length === 0) {
-      this.logger.debug('fake-news — sin cambios');
-      return;
-    }
-
-    this.logger.log(`fake-news — indexando ${records.length} items`);
-    let indexed = 0;
-
-    for (let i = 0; i < records.length; i += BATCH_SIZE) {
-      const batch = records.slice(i, i + BATCH_SIZE);
-      const texts = batch.map((f) => serializeFakeNews(f));
-      const embeddings = await this.embeddings.generateEmbeddingBatch(texts);
-
-      for (let j = 0; j < batch.length; j++) {
-        const sid = sourceId.fakeNews(batch[j].id);
-        await this.vectors.deleteBySource(sid);
-        await this.vectors.insertChunk({
-          text: texts[j],
-          embedding: embeddings[j],
-          source: sid,
-          category: 'fake-news',
-          chunkIndex: 0,
-          totalChunks: 1,
-        });
-        indexed++;
-      }
-    }
-
-    await this.upsertSyncState('fake-news', indexed);
-    this.logger.log(`fake-news — ${indexed} items indexados`);
-  }
-
   async ingestTelegramMessages(): Promise<void> {
     const since = await this.getLastSyncAt('telegram:messages');
     const records = await this.prisma.telegramChannelMessage.findMany({
@@ -302,7 +269,9 @@ export class IngestionService implements OnApplicationBootstrap {
   // ─── Sync state helpers ────────────────────────────────────────────────────
 
   private async getLastSyncAt(source: string): Promise<Date | null> {
-    const state = await this.prisma.aiSyncState.findUnique({ where: { source } });
+    const state = await this.prisma.aiSyncState.findUnique({
+      where: { source },
+    });
     return state?.lastSyncAt ?? null;
   }
 

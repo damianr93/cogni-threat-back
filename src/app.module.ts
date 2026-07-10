@@ -10,12 +10,10 @@ import { HealthModule } from './modules/health/health.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { AlertsModule } from './modules/alerts/alerts.module';
 import { ActorsModule } from './modules/actors/actors.module';
-import { FakeNewsModule } from './modules/fake-news/fake-news.module';
 import { RansomwareModule } from './modules/ransomware/ransomware.module';
 import { VulnMonitorModule } from './modules/vuln-monitor/vuln-monitor.module';
 import { AiChatModule } from './modules/ai-chat/ai-chat.module';
 import { IpWhitelistGuard } from './shared/guards/ip-whitelist.guard';
-import { CountriesModule } from './modules/countries/countries.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { PlatformSecretsModule } from './modules/platform-secrets/platform-secrets.module';
 import { JwtAuthGuard } from './shared/auth/guards/jwt-auth.guard';
@@ -36,9 +34,7 @@ import { RiskOperationsModule } from './modules/risk-operations/risk-operations.
     HealthModule,
     AlertsModule,
     ActorsModule,
-    FakeNewsModule,
     RansomwareModule,
-    CountriesModule,
     VulnMonitorModule,
     AiChatModule,
     AuthModule,
@@ -46,6 +42,12 @@ import { RiskOperationsModule } from './modules/risk-operations/risk-operations.
     RiskOperationsModule,
   ],
   controllers: [AppController],
-  providers: [AppService, IpWhitelistGuard, JwtAuthGuard, RolesGuard, WritePermissionGuard],
+  providers: [
+    AppService,
+    IpWhitelistGuard,
+    JwtAuthGuard,
+    RolesGuard,
+    WritePermissionGuard,
+  ],
 })
 export class AppModule {}

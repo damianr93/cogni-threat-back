@@ -32,7 +32,6 @@
     "db:studio": "prisma studio",
     "db:migrate": "prisma migrate dev",
     "db:migrate:deploy": "prisma migrate deploy",
-    "ingest:fake-news": "ts-node scripts/ingest-fake-news.ts",
     "seed:vuln": "ts-node scripts/seed-vuln.ts",
     "seed:admin": "ts-node scripts/seed-admin.ts",
     "telegram:auth": "ts-node scripts/telegram-auth.ts"

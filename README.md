@@ -315,10 +315,8 @@ src/
 │   ├── ai-chat/
 │   ├── alerts/
 │   ├── auth/
-│   ├── countries/
 │   ├── dashboard/
 │   ├── data-sources/
-│   ├── fake-news/
 │   ├── health/
 │   ├── platform-secrets/
 │   ├── ransomware/
@@ -347,10 +345,8 @@ storage/
 * AI Chat (RAG sobre datos de la plataforma, vía Ollama)
 * Alerts
 * Auth
-* Countries
 * Dashboard
 * Data Sources
-* Fake News
 * Health
 * Platform Secrets (panel admin de credenciales)
 * Ransomware

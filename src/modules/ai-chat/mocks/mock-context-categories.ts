@@ -1,10 +1,29 @@
 import { ContextCategory } from '../types/chat.types';
 
 export const MOCK_CONTEXT_CATEGORIES: ContextCategory[] = [
-  { id: 'ransomware', name: 'ransomware', label: 'Ransomware', color: '#ef4444' },
-  { id: 'vuln-monitor', name: 'vuln-monitor', label: 'CVEs / Vuln Monitor', color: '#4a90d9' },
+  {
+    id: 'ransomware',
+    name: 'ransomware',
+    label: 'Ransomware',
+    color: '#ef4444',
+  },
+  {
+    id: 'vuln-monitor',
+    name: 'vuln-monitor',
+    label: 'CVEs / Vuln Monitor',
+    color: '#4a90d9',
+  },
   { id: 'actors', name: 'actors', label: 'Threat Actors', color: '#e879f9' },
-  { id: 'fake-news', name: 'fake-news', label: 'Fake News', color: '#f59e0b' },
-  { id: 'telegram', name: 'telegram', label: 'Alertas Telegram', color: '#4ade80' },
-  { id: 'cyber-news', name: 'cyber-news', label: 'Cyber News', color: '#64748b' },
+  {
+    id: 'telegram',
+    name: 'telegram',
+    label: 'Alertas Telegram',
+    color: '#4ade80',
+  },
+  {
+    id: 'cyber-news',
+    name: 'cyber-news',
+    label: 'Cyber News',
+    color: '#64748b',
+  },
 ];

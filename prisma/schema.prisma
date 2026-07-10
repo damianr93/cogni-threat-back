@@ -308,16 +308,6 @@ model ThreatData {
   @@map("threat_data")
 }
 
-model CountryFile {
-  id          String   @id @default(cuid())
-  countryCode String   @unique
-  countryName String
-  fileName    String
-  filePath    String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-}
-
 model RansomwareGroupsData {
   id                String    @id @default(cuid())
   group             String    @unique
@@ -517,20 +507,6 @@ model HitosData {
   @@map("hitos_data")
 }
 
-model FakeNewsData {
-  id                String    @id @default(cuid())
-  title             String
-  identificatedDate DateTime?
-  origin            String
-  target            String?
-  methods           String?
-  consequences      String[]
-  links             String[]
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
-
-  @@map("fake_news_data")
-}
 
 model VulnCve {
   id               String    @id
