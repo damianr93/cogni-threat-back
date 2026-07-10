@@ -85,7 +85,10 @@ export const envs = {
   OLLAMA_TIMEOUT_MS: get('OLLAMA_TIMEOUT_MS').default('180000').asIntPositive(),
   RAG_RETRIEVE_CANDIDATES: get('RAG_RETRIEVE_CANDIDATES').default('20').asIntPositive(),
   RAG_CHAT_TEMPERATURE: get('RAG_CHAT_TEMPERATURE').default('0.2').asFloat(),
-  RAG_CHAT_NUM_CTX: get('RAG_CHAT_NUM_CTX').default('32768').asIntPositive(),
+  // 8192 por default: contexto grande (32k+) exige mucha más VRAM/tiempo por
+  // request en hardware de self-host típico (laptop, single-GPU local). Con
+  // más VRAM disponible, subilo desde el panel admin sin reiniciar.
+  RAG_CHAT_NUM_CTX: get('RAG_CHAT_NUM_CTX').default('8192').asIntPositive(),
   RAG_QUERY_MAX_CHARS: get('RAG_QUERY_MAX_CHARS').default('3500').asIntPositive(),
   RAG_QUERY_INSTRUCT: get('RAG_QUERY_INSTRUCT').default(
     'Instruct: Given a search query, retrieve relevant passages that answer the query\nQuery: ',
