@@ -317,6 +317,46 @@ export class RansomwareService {
     }
   }
 
+  async refreshGroupDetails(groupName: string) {
+    try {
+      if (!groupName || groupName.trim().length === 0) {
+        return { success: false, error: 'Group name is required' };
+      }
+
+      const normalizedGroupName = groupName.trim();
+      const response = await this.apiClient.Group(normalizedGroupName);
+
+      if (!response.success || !response.data) {
+        return {
+          success: false,
+          error: response.error || 'Failed to refresh group details',
+          timestamp: new Date(),
+        };
+      }
+
+      const groupDataWithName = {
+        ...response.data,
+        group: response.data.group || response.data.name || normalizedGroupName,
+      };
+      const processedGroup =
+        this.dataProcessor.processGroupData(groupDataWithName);
+
+      if (!processedGroup.group || processedGroup.group === 'Unknown Group') {
+        processedGroup.group = normalizedGroupName;
+      }
+
+      const savedGroup = await this.saveSingleGroupToDatabase(processedGroup);
+
+      return { success: true, data: savedGroup, timestamp: new Date() };
+    } catch (error: any) {
+      const message = this.safeErrorMessage(error);
+      this.logger.warn(
+        `Error refreshing group details for ${groupName}: ${message}`,
+      );
+      return { success: false, error: message, timestamp: new Date() };
+    }
+  }
+
   async getAllGroupsWithDetails() {
     try {
       const groups = await this.prisma.ransomwareGroupsData.findMany({
@@ -698,7 +738,7 @@ export class RansomwareService {
         throw new Error('Group name is required');
       }
 
-      await this.prisma.ransomwareGroupsData.upsert({
+      return this.prisma.ransomwareGroupsData.upsert({
         where: { group: groupData.group },
         update: {
           altname: groupData.altname,

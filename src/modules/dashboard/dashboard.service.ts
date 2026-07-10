@@ -76,6 +76,13 @@ export class DashboardService {
     return this.ransomwareService.getGroupDetails(groupName);
   }
 
+  async refreshGroupDetails(groupName: string) {
+    if (!groupName) {
+      return { success: false, error: 'Group name is required' };
+    }
+    return this.ransomwareService.refreshGroupDetails(groupName);
+  }
+
   async getAllGroupsWithDetails() {
     return this.ransomwareService.getAllGroupsWithDetails();
   }

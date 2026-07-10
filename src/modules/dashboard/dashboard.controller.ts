@@ -1,4 +1,4 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Controller, Get, Post, Query } from '@nestjs/common';
 import { DashboardService } from './dashboard.service';
 import { ThreatDataDto } from '../../shared/dto/threat-data.dto';
 
@@ -42,6 +42,11 @@ export class DashboardController {
   @Get('group-details')
   async getGroupDetails(@Query('groupName') groupName: string) {
     return this.dashboardService.getGroupDetails(groupName);
+  }
+
+  @Post('group-details/refresh')
+  async refreshGroupDetails(@Query('groupName') groupName: string) {
+    return this.dashboardService.refreshGroupDetails(groupName);
   }
 
   @Get('all-groups')
