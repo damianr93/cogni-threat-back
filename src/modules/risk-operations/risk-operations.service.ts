@@ -106,6 +106,7 @@ const TreatmentSchema = z.object({
   riskId: z.string().min(1),
   strategy: TreatmentOption,
   plan: z.string().trim().min(1),
+  responsibleUserId: optionalText,
   responsibleName: optionalText,
   dueDate: dateInput,
   residualLikelihood: scoreInput.optional().nullable(),
@@ -411,6 +412,8 @@ export class RiskOperationsService {
   async createTreatment(user: AuthenticatedUser, body: unknown) {
     const data = TreatmentSchema.parse(body);
     await this.ensureRisk(data.riskId);
+    if (data.responsibleUserId)
+      await this.ensureUser(data.responsibleUserId);
     const scores = this.residualScores(
       data.residualLikelihood,
       data.residualImpact,
@@ -419,7 +422,7 @@ export class RiskOperationsService {
       data: {
         ...this.treatmentData(data),
         ...scores,
-        responsibleUserId: user.id,
+        responsibleUserId: data.responsibleUserId || user.id,
       } as Prisma.RiskTreatmentUncheckedCreateInput,
       include: {
         risk: { include: { asset: true } },
@@ -432,6 +435,8 @@ export class RiskOperationsService {
   async updateTreatment(id: string, body: unknown) {
     const data = TreatmentSchema.partial().parse(body);
     if (data.riskId) await this.ensureRisk(data.riskId);
+    if (data.responsibleUserId)
+      await this.ensureUser(data.responsibleUserId);
     const current = await this.ensureTreatment(id);
     const residualLikelihood =
       data.residualLikelihood ?? current.residualLikelihood;

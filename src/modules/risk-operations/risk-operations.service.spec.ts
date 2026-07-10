@@ -58,4 +58,52 @@ describe('RiskOperationsService', () => {
       }),
     ]);
   });
+
+  it('persists selected responsible user when creating a treatment', async () => {
+    const prisma = {
+      risk: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'risk-1',
+          residualLikelihood: null,
+          residualImpact: null,
+        }),
+      },
+      user: {
+        findFirst: jest.fn().mockResolvedValue({ id: 'user-2' }),
+      },
+      riskTreatment: {
+        create: jest.fn().mockResolvedValue({ id: 'treatment-1' }),
+      },
+    };
+    const service = new RiskOperationsService(prisma as any);
+
+    await service.createTreatment(
+      { id: 'user-1', email: 'owner@example.com', role: 'USER', permission: 'WRITE' } as any,
+      {
+        riskId: 'risk-1',
+        strategy: 'MITIGATE',
+        plan: 'Patch affected asset',
+        responsibleUserId: 'user-2',
+        responsibleName: 'responsible@example.com',
+        residualLikelihood: 2,
+        residualImpact: 3,
+      },
+    );
+
+    expect(prisma.user.findFirst).toHaveBeenCalledWith({
+      where: { id: 'user-2', isActive: true },
+      select: { id: true },
+    });
+    expect(prisma.riskTreatment.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          responsibleUserId: 'user-2',
+          responsibleName: 'responsible@example.com',
+          residualScore: 6,
+          residualLevel: 'MEDIUM',
+        }),
+      }),
+    );
+  });
+
 });
