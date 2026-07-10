@@ -9,6 +9,10 @@ import { RansomwareModule } from '../ransomware/ransomware.module';
 @Module({
   imports: [DatabaseModule, RansomwareModule],
   controllers: [DataSourcesController],
-  providers: [DataSourcesService, SyncRecoveryService, GroupsSyncProgressService],
+  providers: [
+    DataSourcesService,
+    SyncRecoveryService,
+    GroupsSyncProgressService,
+  ],
 })
 export class DataSourcesModule {}

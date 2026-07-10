@@ -1,6 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
-import { Prisma, AlertSource, AlertSubscription, UserNotificationChannel } from '@prisma/client';
+import {
+  Prisma,
+  AlertSource,
+  AlertSubscription,
+  UserNotificationChannel,
+} from '@prisma/client';
 import { PrismaService } from '../../shared/database/prisma.service';
 import { TelegramService, TelegramMessage } from './telegram.service';
 import { TelegramChannelService } from './telegram-channel.service';
@@ -8,7 +13,10 @@ import { ConfigService } from '@nestjs/config';
 import { SecretsService } from '../../shared/secret-store/secrets.service';
 import { envs } from 'libs/config/src/envs';
 import { VulnWatchProfilesService } from './vuln/vuln-watch-profiles.service';
-import { findVulnAlertCandidates, parseVulnMonitorSettings } from './vuln/vuln-alert.processor';
+import {
+  findVulnAlertCandidates,
+  parseVulnMonitorSettings,
+} from './vuln/vuln-alert.processor';
 import { buildVulnTelegramMessage } from './vuln/vuln-telegram-message';
 import type { ProfileInput } from './vuln/vuln-alert.types';
 
@@ -60,7 +68,12 @@ interface VulnMonitorSettings {
 
 const SOURCE_DEFINITIONS: Record<
   AlertSourceKey,
-  { name: string; description: string; serviceType: string; defaultLookbackHours: number }
+  {
+    name: string;
+    description: string;
+    serviceType: string;
+    defaultLookbackHours: number;
+  }
 > = {
   'ransomware-live': {
     name: 'Ransomware.live',
@@ -93,7 +106,7 @@ export class AlertProcessorService {
     private readonly configService: ConfigService,
     private readonly secrets: SecretsService,
     private readonly vulnProfiles: VulnWatchProfilesService,
-  ) { }
+  ) {}
 
   @Cron('*/5 * * * *')
   async checkForNewAlerts() {
@@ -101,7 +114,11 @@ export class AlertProcessorService {
   }
 
   private async processAlerts(updateLastCheck: boolean = true) {
-    this.logger.log(updateLastCheck ? 'Checking for new alerts (scheduled)' : 'Checking for new alerts (manual)');
+    this.logger.log(
+      updateLastCheck
+        ? 'Checking for new alerts (scheduled)'
+        : 'Checking for new alerts (manual)',
+    );
 
     try {
       await this.ensureAlertSources();
@@ -121,7 +138,9 @@ export class AlertProcessorService {
 
       for (const key of Object.keys(SOURCE_DEFINITIONS) as AlertSourceKey[]) {
         const sourceSubscriptions = subscriptions.filter(
-          (subscription) => subscription.source?.key === key && subscription.deliveryChannel?.isActive,
+          (subscription) =>
+            subscription.source?.key === key &&
+            subscription.deliveryChannel?.isActive,
         );
 
         if (sourceSubscriptions.length === 0) {
@@ -129,9 +148,12 @@ export class AlertProcessorService {
         }
 
         const serviceState = await this.ensureMonitoredService(key);
-        const since = serviceState.lastCheck ?? this.getDefaultLookbackDate(key);
+        const since =
+          serviceState.lastCheck ?? this.getDefaultLookbackDate(key);
 
-        this.logger.log(`${key}: Processing ${sourceSubscriptions.length} subscription(s)`);
+        this.logger.log(
+          `${key}: Processing ${sourceSubscriptions.length} subscription(s)`,
+        );
 
         try {
           if (key === 'ransomware-live') {
@@ -142,7 +164,10 @@ export class AlertProcessorService {
             await this.handleVulnMonitorAlerts(sourceSubscriptions, since);
           }
         } catch (error: any) {
-          this.logger.error(`Error processing ${key} alerts`, error?.stack || error?.message);
+          this.logger.error(
+            `Error processing ${key} alerts`,
+            error?.stack || error?.message,
+          );
         } finally {
           if (updateLastCheck) {
             await this.updateLastCheck(key);
@@ -152,7 +177,10 @@ export class AlertProcessorService {
 
       this.logger.log('Alert sweep completed');
     } catch (error: any) {
-      this.logger.error('Error checking for alerts', error?.stack || error?.message);
+      this.logger.error(
+        'Error checking for alerts',
+        error?.stack || error?.message,
+      );
     }
   }
 
@@ -209,7 +237,10 @@ export class AlertProcessorService {
     return date;
   }
 
-  private async handleRansomwareAlerts(subscriptions: SubscriptionWithRelations[], since: Date) {
+  private async handleRansomwareAlerts(
+    subscriptions: SubscriptionWithRelations[],
+    since: Date,
+  ) {
     const incidents = await this.prisma.ransomwareVictimsData.findMany({
       where: {
         discovered: {
@@ -226,13 +257,18 @@ export class AlertProcessorService {
 
     let totalAlerts = 0;
     for (const subscription of subscriptions) {
-      const settings = this.parseSettings<RansomwareSettings>(subscription.settings, {
-        countries: [],
-        groups: [],
-        keywords: [],
-      });
+      const settings = this.parseSettings<RansomwareSettings>(
+        subscription.settings,
+        {
+          countries: [],
+          groups: [],
+          keywords: [],
+        },
+      );
 
-      const matches = incidents.filter((incident) => this.matchesRansomwareSettings(incident, settings));
+      const matches = incidents.filter((incident) =>
+        this.matchesRansomwareSettings(incident, settings),
+      );
 
       if (matches.length > 0) {
         totalAlerts += matches.length;
@@ -277,11 +313,16 @@ export class AlertProcessorService {
     }
 
     if (totalAlerts > 0) {
-      this.logger.log(`Ransomware: ${totalAlerts} alert(s) sent from ${incidents.length} incident(s)`);
+      this.logger.log(
+        `Ransomware: ${totalAlerts} alert(s) sent from ${incidents.length} incident(s)`,
+      );
     }
   }
 
-  private matchesRansomwareSettings(incident: any, settings: RansomwareSettings) {
+  private matchesRansomwareSettings(
+    incident: any,
+    settings: RansomwareSettings,
+  ) {
     if (settings.countries.length > 0 && incident.country) {
       if (!settings.countries.includes(incident.country)) {
         return false;
@@ -292,18 +333,26 @@ export class AlertProcessorService {
 
     if (settings.groups.length > 0) {
       const incidentGroup = (incident.group || '').toLowerCase();
-      if (!settings.groups.some((group) => group.toLowerCase() === incidentGroup)) {
+      if (
+        !settings.groups.some((group) => group.toLowerCase() === incidentGroup)
+      ) {
         return false;
       }
     }
 
     if (settings.keywords.length > 0) {
-      const haystack = [incident.victim, incident.description, incident.activity]
+      const haystack = [
+        incident.victim,
+        incident.description,
+        incident.activity,
+      ]
         .filter(Boolean)
         .map((value) => value?.toLowerCase() || '')
         .join(' ');
 
-      const keywordMatch = settings.keywords.some((keyword) => haystack.includes(keyword.toLowerCase()));
+      const keywordMatch = settings.keywords.some((keyword) =>
+        haystack.includes(keyword.toLowerCase()),
+      );
 
       if (!keywordMatch) {
         return false;
@@ -313,7 +362,10 @@ export class AlertProcessorService {
     return true;
   }
 
-  private async handleTelegramChannelAlerts(subscriptions: SubscriptionWithRelations[], since: Date) {
+  private async handleTelegramChannelAlerts(
+    subscriptions: SubscriptionWithRelations[],
+    since: Date,
+  ) {
     const messages = await this.prisma.telegramChannelMessage.findMany({
       where: {
         date: { gte: since },
@@ -324,7 +376,9 @@ export class AlertProcessorService {
 
     if (messages.length === 0) {
       if (subscriptions.length > 0) {
-        this.logger.warn(`Telegram: No messages found since ${since.toISOString()}`);
+        this.logger.warn(
+          `Telegram: No messages found since ${since.toISOString()}`,
+        );
       }
       return;
     }
@@ -333,12 +387,15 @@ export class AlertProcessorService {
     let subscriptionsWithoutKeywords = 0;
 
     for (const subscription of subscriptions) {
-      const settings = this.parseSettings<TelegramChannelSettings>(subscription.settings, {
-        channels: [],
-        keywords: [],
-        matchType: 'any',
-        caseSensitive: false,
-      });
+      const settings = this.parseSettings<TelegramChannelSettings>(
+        subscription.settings,
+        {
+          channels: [],
+          keywords: [],
+          matchType: 'any',
+          caseSensitive: false,
+        },
+      );
 
       if (settings.keywords.length === 0) {
         subscriptionsWithoutKeywords++;
@@ -350,11 +407,16 @@ export class AlertProcessorService {
         : settings.keywords.map((keyword) => keyword.toLowerCase());
 
       const filteredMessages = messages.filter((message) => {
-        if (settings.channels.length > 0 && !settings.channels.includes(message.channelName)) {
+        if (
+          settings.channels.length > 0 &&
+          !settings.channels.includes(message.channelName)
+        ) {
           return false;
         }
 
-        const text = settings.caseSensitive ? message.content : message.content.toLowerCase();
+        const text = settings.caseSensitive
+          ? message.content
+          : message.content.toLowerCase();
 
         if (settings.matchType === 'all') {
           return normalizedKeywords.every((keyword) => text.includes(keyword));
@@ -369,12 +431,17 @@ export class AlertProcessorService {
 
       for (const message of filteredMessages) {
         const matchedKeywords = normalizedKeywords.filter((keyword) => {
-          const haystack = settings.caseSensitive ? message.content : message.content.toLowerCase();
+          const haystack = settings.caseSensitive
+            ? message.content
+            : message.content.toLowerCase();
           return haystack.includes(keyword);
         });
 
         const snippet = this.escapeHtml(this.truncate(message.content, 900));
-        const keywordsText = matchedKeywords.length > 0 ? matchedKeywords.join(', ') : 'Palabras clave';
+        const keywordsText =
+          matchedKeywords.length > 0
+            ? matchedKeywords.join(', ')
+            : 'Palabras clave';
 
         const alertText = [
           '<b>Alerta por Canal de Telegram</b>',
@@ -408,14 +475,21 @@ export class AlertProcessorService {
     }
 
     if (subscriptionsWithoutKeywords > 0) {
-      this.logger.warn(`Telegram: ${subscriptionsWithoutKeywords} subscription(s) without keywords skipped`);
+      this.logger.warn(
+        `Telegram: ${subscriptionsWithoutKeywords} subscription(s) without keywords skipped`,
+      );
     }
     if (totalAlerts > 0) {
-      this.logger.log(`Telegram: ${totalAlerts} alert(s) sent from ${messages.length} message(s)`);
+      this.logger.log(
+        `Telegram: ${totalAlerts} alert(s) sent from ${messages.length} message(s)`,
+      );
     }
   }
 
-  private async handleVulnMonitorAlerts(subscriptions: SubscriptionWithRelations[], since: Date) {
+  private async handleVulnMonitorAlerts(
+    subscriptions: SubscriptionWithRelations[],
+    since: Date,
+  ) {
     const cves = await this.prisma.vulnCve.findMany({
       where: { modifiedAt: { gte: since } },
       orderBy: { modifiedAt: 'desc' },
@@ -424,14 +498,17 @@ export class AlertProcessorService {
 
     if (cves.length === 0) return;
 
-    const profileMap = await this.vulnProfiles.loadAllProfilesForSubscriptions(subscriptions);
+    const profileMap =
+      await this.vulnProfiles.loadAllProfilesForSubscriptions(subscriptions);
     let totalAlerts = 0;
     const dashboardBase = envs.CORS_ORIGIN.split(',')[0]?.trim() || '';
 
     for (const subscription of subscriptions) {
       const settings = parseVulnMonitorSettings(subscription.settings);
       if (!settings.profileIds.length) {
-        this.logger.warn(`VulnMonitor: subscription ${subscription.id} has no profileIds, skipping`);
+        this.logger.warn(
+          `VulnMonitor: subscription ${subscription.id} has no profileIds, skipping`,
+        );
         continue;
       }
 
@@ -443,13 +520,24 @@ export class AlertProcessorService {
 
       for (const { cve, hits } of candidates) {
         totalAlerts++;
-        const cvssScore = cve.cvssScore != null ? Number(cve.cvssScore).toFixed(1) : 'N/A';
-        const epssScore = cve.epssScore != null ? Number(cve.epssScore).toFixed(3) : null;
-        const epssPercentile = cve.epssPercentile != null ? (Number(cve.epssPercentile) * 100).toFixed(1) : null;
+        const cvssScore =
+          cve.cvssScore != null ? Number(cve.cvssScore).toFixed(1) : 'N/A';
+        const epssScore =
+          cve.epssScore != null ? Number(cve.epssScore).toFixed(3) : null;
+        const epssPercentile =
+          cve.epssPercentile != null
+            ? (Number(cve.epssPercentile) * 100).toFixed(1)
+            : null;
         const cveDisplay = cve.cveId ?? cve.id;
-        const nvdLink = cve.cveId ? `https://nvd.nist.gov/vuln/detail/${cve.cveId}` : null;
-        const dashboardLink = dashboardBase ? `${dashboardBase}/vuln-monitor` : null;
-        const sourceBadges = cve.sources.map((s) => s.toUpperCase()).join(' · ');
+        const nvdLink = cve.cveId
+          ? `https://nvd.nist.gov/vuln/detail/${cve.cveId}`
+          : null;
+        const dashboardLink = dashboardBase
+          ? `${dashboardBase}/vuln-monitor`
+          : null;
+        const sourceBadges = cve.sources
+          .map((s) => s.toUpperCase())
+          .join(' · ');
 
         const message = buildVulnTelegramMessage({
           cveId: cveDisplay,
@@ -495,7 +583,9 @@ export class AlertProcessorService {
     }
 
     if (totalAlerts > 0) {
-      this.logger.log(`VulnMonitor: ${totalAlerts} alert(s) from ${cves.length} CVE(s)`);
+      this.logger.log(
+        `VulnMonitor: ${totalAlerts} alert(s) from ${cves.length} CVE(s)`,
+      );
     }
   }
 
@@ -505,9 +595,17 @@ export class AlertProcessorService {
     return date;
   }
 
-  private async dispatchEvent(subscription: SubscriptionWithRelations, event: AlertEventPayload) {
-    if (!subscription.deliveryChannel || subscription.deliveryChannel.type !== 'telegram') {
-      this.logger.warn(`Subscription ${subscription.id} has no Telegram channel configured`);
+  private async dispatchEvent(
+    subscription: SubscriptionWithRelations,
+    event: AlertEventPayload,
+  ) {
+    if (
+      !subscription.deliveryChannel ||
+      subscription.deliveryChannel.type !== 'telegram'
+    ) {
+      this.logger.warn(
+        `Subscription ${subscription.id} has no Telegram channel configured`,
+      );
       return;
     }
 
@@ -517,12 +615,16 @@ export class AlertProcessorService {
       return;
     }
 
-    const chatIds: string[] = Array.isArray(subscription.deliveryChannel.chatIds)
+    const chatIds: string[] = Array.isArray(
+      subscription.deliveryChannel.chatIds,
+    )
       ? subscription.deliveryChannel.chatIds
       : [];
 
     if (chatIds.length === 0) {
-      this.logger.warn(`Subscription ${subscription.id} missing Telegram chat IDs`);
+      this.logger.warn(
+        `Subscription ${subscription.id} missing Telegram chat IDs`,
+      );
       return;
     }
 
@@ -539,23 +641,32 @@ export class AlertProcessorService {
 
     const results = await Promise.allSettled(
       chatIds.map((chatId) =>
-        this.telegramService.sendHtmlMessage(
-          botToken,
-          chatId,
-          event.message,
-        )
-      )
+        this.telegramService.sendHtmlMessage(botToken, chatId, event.message),
+      ),
     );
     const firstSuccessResult = results.find(
-      (result) =>
-        result.status === 'fulfilled' && result.value.success
-    ) as PromiseFulfilledResult<{ success: boolean, messageId?: number, error?: string }> | undefined;
+      (result) => result.status === 'fulfilled' && result.value.success,
+    ) as
+      | PromiseFulfilledResult<{
+          success: boolean;
+          messageId?: number;
+          error?: string;
+        }>
+      | undefined;
 
-    const firstResult = results[0].status === 'fulfilled' ? results[0].value : { success: false, error: 'unknown error' };
+    const firstResult =
+      results[0].status === 'fulfilled'
+        ? results[0].value
+        : { success: false, error: 'unknown error' };
 
     const payloadWithMessage =
-      event.payload && typeof event.payload === 'object' && !Array.isArray(event.payload)
-        ? { ...(event.payload as Record<string, unknown>), telegramMessage: event.message }
+      event.payload &&
+      typeof event.payload === 'object' &&
+      !Array.isArray(event.payload)
+        ? {
+            ...(event.payload as Record<string, unknown>),
+            telegramMessage: event.message,
+          }
         : { telegramMessage: event.message };
 
     try {
@@ -577,12 +688,16 @@ export class AlertProcessorService {
           payload: payloadWithMessage,
           deliveryChannelId: subscription.deliveryChannel.id,
           deliveryStatus: firstSuccessResult?.value.success ? 'SENT' : 'ERROR',
-          errorMessage: firstSuccessResult?.value.success ? null : firstResult.error,
+          errorMessage: firstSuccessResult?.value.success
+            ? null
+            : firstResult.error,
         },
       });
     } catch (error: any) {
       if (error?.code === 'P2002') {
-        this.logger.warn(`Alert history already recorded for event "${event.eventId}" (subscription ${subscription.id})`);
+        this.logger.warn(
+          `Alert history already recorded for event "${event.eventId}" (subscription ${subscription.id})`,
+        );
       } else {
         throw error;
       }
@@ -601,7 +716,10 @@ export class AlertProcessorService {
     });
   }
 
-  private parseSettings<T extends Record<string, any>>(settings: Prisma.JsonValue | null, defaults: T): T {
+  private parseSettings<T extends Record<string, any>>(
+    settings: Prisma.JsonValue | null,
+    defaults: T,
+  ): T {
     if (!settings || typeof settings !== 'object' || Array.isArray(settings)) {
       return { ...defaults };
     }
@@ -640,7 +758,7 @@ export class AlertProcessorService {
         return value.toISOString();
       }
       if (Array.isArray(value)) {
-        return value.map((item) => normalize(item)) as Prisma.InputJsonValue;
+        return value.map((item) => normalize(item));
       }
       if (value && typeof value === 'object') {
         const nested: Record<string, Prisma.InputJsonValue> = {};
@@ -667,7 +785,8 @@ export class AlertProcessorService {
     await this.processAlerts(false); // false = no actualizar lastCheck
     return {
       success: true,
-      message: 'Manual check completed. Alerts sent without affecting scheduled task timing.',
+      message:
+        'Manual check completed. Alerts sent without affecting scheduled task timing.',
     };
   }
 

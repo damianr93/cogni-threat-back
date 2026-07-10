@@ -1,4 +1,10 @@
-import { ConflictException, ForbiddenException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import {
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { envs } from 'libs/config/src/envs';
 import { PrismaService } from '../../shared/database/prisma.service';
 import type { AuthenticatedUser } from '../../shared/auth/types/authenticated-user.type';
@@ -22,7 +28,11 @@ export class AuthService {
   async login(credentials: LoginDto) {
     const user = await this.findUserByEmail(credentials.email);
 
-    if (!user || !user.isActive || !this.crypto.verifyPassword(credentials.password, user.passwordHash)) {
+    if (
+      !user ||
+      !user.isActive ||
+      !this.crypto.verifyPassword(credentials.password, user.passwordHash)
+    ) {
       throw new UnauthorizedException('Credenciales inválidas');
     }
 
@@ -60,7 +70,7 @@ export class AuthService {
     });
 
     return {
-      user: this.toAuthenticatedUser(user as DbUser),
+      user: this.toAuthenticatedUser(user),
     };
   }
 
@@ -122,14 +132,14 @@ export class AuthService {
     return this.prisma.user.findUnique({
       where: { email },
       select: this.userSelect(),
-    }) as Promise<DbUser | null>;
+    });
   }
 
   private async findUserById(id: string): Promise<DbUser | null> {
     return this.prisma.user.findUnique({
       where: { id },
       select: this.userSelect(),
-    }) as Promise<DbUser | null>;
+    });
   }
 
   private toAuthenticatedUser(user: DbUser): AuthenticatedUser {

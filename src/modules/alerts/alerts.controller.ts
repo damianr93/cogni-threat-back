@@ -1,4 +1,13 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Post,
+  Put,
+  Query,
+} from '@nestjs/common';
 import { AlertsService } from './alerts.service';
 import { RequireWrite } from '../../shared/auth/decorators/require-write.decorator';
 import { CurrentUser } from '../../shared/auth/decorators/current-user.decorator';
@@ -20,7 +29,10 @@ export class AlertsController {
 
   @Post('notification-channels')
   @RequireWrite()
-  async createNotificationChannel(@Body() data: any, @CurrentUser() user: AuthenticatedUser) {
+  async createNotificationChannel(
+    @Body() data: any,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.alertsService.createNotificationChannel(user.id, data);
   }
 
@@ -36,7 +48,10 @@ export class AlertsController {
 
   @Delete('notification-channels/:id')
   @RequireWrite()
-  async deleteNotificationChannel(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
+  async deleteNotificationChannel(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.alertsService.deleteNotificationChannel(id, user.id);
   }
 
@@ -47,7 +62,10 @@ export class AlertsController {
 
   @Post('subscriptions')
   @RequireWrite()
-  async createSubscription(@Body() data: any, @CurrentUser() user: AuthenticatedUser) {
+  async createSubscription(
+    @Body() data: any,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.alertsService.createSubscription(user.id, data);
   }
 
@@ -63,7 +81,10 @@ export class AlertsController {
 
   @Delete('subscriptions/:id')
   @RequireWrite()
-  async deleteSubscription(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
+  async deleteSubscription(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.alertsService.deleteSubscription(id, user.id);
   }
 
@@ -115,7 +136,9 @@ export class AlertsController {
 
   @Post('monitored-channels')
   @RequireWrite()
-  async createMonitoredChannel(@Body() data: { username: string; description?: string }) {
+  async createMonitoredChannel(
+    @Body() data: { username: string; description?: string },
+  ) {
     return this.alertsService.createMonitoredChannel(data);
   }
 
@@ -123,7 +146,8 @@ export class AlertsController {
   @RequireWrite()
   async updateMonitoredChannel(
     @Param('id') id: string,
-    @Body() data: { username?: string; description?: string; isActive?: boolean }
+    @Body()
+    data: { username?: string; description?: string; isActive?: boolean },
   ) {
     return this.alertsService.updateMonitoredChannel(id, data);
   }
@@ -140,4 +164,3 @@ export class AlertsController {
     return this.alertsService.reloadTelegramChannels();
   }
 }
-

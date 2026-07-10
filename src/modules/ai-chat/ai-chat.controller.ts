@@ -43,12 +43,18 @@ export class AiChatController {
 
   @Post('conversation')
   @RequireWrite()
-  createConversation(@Body() body: CreateConversationDto, @CurrentUser() user: AuthenticatedUser) {
+  createConversation(
+    @Body() body: CreateConversationDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.aiChat.createConversation(user.id, body.title);
   }
 
   @Get('conversation/:id/history')
-  async getHistory(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthenticatedUser) {
+  async getHistory(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return {
       success: true,
       data: await this.aiChat.getHistory(id, user.id),
@@ -67,7 +73,10 @@ export class AiChatController {
 
   @Post('conversation/delete')
   @RequireWrite()
-  deleteConversation(@Body() body: DeleteConversationDto, @CurrentUser() user: AuthenticatedUser) {
+  deleteConversation(
+    @Body() body: DeleteConversationDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.aiChat.deleteConversation(body.conversationId, user.id);
   }
 
@@ -107,6 +116,9 @@ export class AiChatController {
   @Roles('ADMIN')
   async triggerSync() {
     void this.sync.triggerFull();
-    return { success: true, data: { message: 'Ingesta iniciada en background' } };
+    return {
+      success: true,
+      data: { message: 'Ingesta iniciada en background' },
+    };
   }
 }

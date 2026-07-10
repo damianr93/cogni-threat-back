@@ -16,7 +16,8 @@ export class DataSourcesService {
 
   private safeErrorMessage(error: any): string {
     if (typeof error === 'string') return error;
-    if (error?.code === 'ETIMEDOUT' || error?.code === 'ECONNABORTED') return 'Connection timeout';
+    if (error?.code === 'ETIMEDOUT' || error?.code === 'ECONNABORTED')
+      return 'Connection timeout';
     if (error?.code === 'ENETUNREACH') return 'Network unreachable';
     if (error?.response?.status) return `HTTP ${error.response.status}`;
     return error?.message ? 'Operation failed' : 'Unknown error';
@@ -31,16 +32,24 @@ export class DataSourcesService {
   async syncRansomwareNightly() {
     const groupsResult = await this.syncGroups();
     if (groupsResult.success) {
-      this.logger.log(`Ransomware groups full sync completed: ${groupsResult.message}`);
+      this.logger.log(
+        `Ransomware groups full sync completed: ${groupsResult.message}`,
+      );
     } else {
-      this.logger.warn(`Ransomware groups full sync failed: ${this.safeErrorMessage(groupsResult.error)}`);
+      this.logger.warn(
+        `Ransomware groups full sync failed: ${this.safeErrorMessage(groupsResult.error)}`,
+      );
     }
 
     const victimsResult = await this.syncVictimsByCountry();
     if (victimsResult.success) {
-      this.logger.log(`Ransomware victims by country sync completed: ${victimsResult.message}`);
+      this.logger.log(
+        `Ransomware victims by country sync completed: ${victimsResult.message}`,
+      );
     } else {
-      this.logger.warn(`Ransomware victims by country sync failed: ${this.safeErrorMessage(victimsResult.error)}`);
+      this.logger.warn(
+        `Ransomware victims by country sync failed: ${this.safeErrorMessage(victimsResult.error)}`,
+      );
     }
 
     return { groups: groupsResult, victims: victimsResult };
@@ -48,7 +57,7 @@ export class DataSourcesService {
 
   async performSync() {
     try {
-      const result = await this.ransomwareService.syncData() as any;
+      const result = (await this.ransomwareService.syncData()) as any;
       if (result.success) {
         const dataSource = await this.prisma.dataSource.findFirst({
           where: { name: 'ransomware-live' },
@@ -104,8 +113,11 @@ export class DataSourcesService {
   }
 
   async getDataSource(id: string) {
-    const dataSource = await this.prisma.dataSource.findUnique({ where: { id } });
-    if (!dataSource) throw new NotFoundException(`Data source with ID ${id} not found`);
+    const dataSource = await this.prisma.dataSource.findUnique({
+      where: { id },
+    });
+    if (!dataSource)
+      throw new NotFoundException(`Data source with ID ${id} not found`);
     return dataSource;
   }
 
@@ -115,7 +127,10 @@ export class DataSourcesService {
 
   async updateDataSource(id: string, updateDataSourceDto: any) {
     await this.getDataSource(id);
-    return this.prisma.dataSource.update({ where: { id }, data: updateDataSourceDto });
+    return this.prisma.dataSource.update({
+      where: { id },
+      data: updateDataSourceDto,
+    });
   }
 
   async deleteDataSource(id: string) {
@@ -131,9 +146,14 @@ export class DataSourcesService {
         await this.ransomwareService.syncData();
       }
 
-      return this.prisma.dataSource.update({ where: { id }, data: { lastSync: new Date() } });
+      return this.prisma.dataSource.update({
+        where: { id },
+        data: { lastSync: new Date() },
+      });
     } catch (error) {
-      throw new Error(`Error syncing data source: ${this.safeErrorMessage(error)}`);
+      throw new Error(
+        `Error syncing data source: ${this.safeErrorMessage(error)}`,
+      );
     }
   }
 
@@ -142,10 +162,15 @@ export class DataSourcesService {
       const result = await this.ransomwareService.getVictimsByCountry();
 
       if (result.success) {
-        const dataSource = await this.prisma.dataSource.findFirst({ where: { name: 'ransomware-live' } });
+        const dataSource = await this.prisma.dataSource.findFirst({
+          where: { name: 'ransomware-live' },
+        });
 
         if (dataSource) {
-          await this.prisma.dataSource.update({ where: { id: dataSource.id }, data: { lastSync: new Date() } });
+          await this.prisma.dataSource.update({
+            where: { id: dataSource.id },
+            data: { lastSync: new Date() },
+          });
 
           return {
             success: true,
@@ -156,7 +181,11 @@ export class DataSourcesService {
         }
       }
 
-      return { success: false, error: result.error || 'Unknown error', timestamp: new Date() };
+      return {
+        success: false,
+        error: result.error || 'Unknown error',
+        timestamp: new Date(),
+      };
     } catch (error) {
       const message = this.safeErrorMessage(error);
       this.logger.warn(`Error during victims by country sync: ${message}`);
@@ -170,16 +199,18 @@ export class DataSourcesService {
 
   triggerGroupsSyncInBackground(): { started: boolean; message: string } {
     if (this.groupsSyncProgress.isRunning()) {
-      return { started: false, message: 'Ya hay una sincronización de grupos en curso' };
+      return {
+        started: false,
+        message: 'Ya hay una sincronización de grupos en curso',
+      };
     }
 
     this.groupsSyncProgress.start(0);
-    void this.executeGroupsSync(true)
-      .catch((error: Error) => {
-        const message = this.safeErrorMessage(error);
-        this.logger.error(`Groups background sync failed: ${message}`);
-        this.groupsSyncProgress.fail(message);
-      });
+    void this.executeGroupsSync(true).catch((error: Error) => {
+      const message = this.safeErrorMessage(error);
+      this.logger.error(`Groups background sync failed: ${message}`);
+      this.groupsSyncProgress.fail(message);
+    });
 
     return { started: true, message: 'Sincronización de grupos iniciada' };
   }
@@ -200,13 +231,20 @@ export class DataSourcesService {
       );
 
       if (result && result.success) {
-        const dataSource = await this.prisma.dataSource.findFirst({ where: { name: 'ransomware-live' } });
+        const dataSource = await this.prisma.dataSource.findFirst({
+          where: { name: 'ransomware-live' },
+        });
 
         if (dataSource) {
-          await this.prisma.dataSource.update({ where: { id: dataSource.id }, data: { lastSync: new Date() } });
+          await this.prisma.dataSource.update({
+            where: { id: dataSource.id },
+            data: { lastSync: new Date() },
+          });
 
           if (trackProgress) {
-            this.groupsSyncProgress.complete(result.message || 'Groups sync completed successfully');
+            this.groupsSyncProgress.complete(
+              result.message || 'Groups sync completed successfully',
+            );
           }
 
           return {
@@ -222,7 +260,11 @@ export class DataSourcesService {
         this.groupsSyncProgress.fail(result?.error || 'Unknown error');
       }
 
-      return { success: false, error: result?.error || 'Unknown error', timestamp: new Date() };
+      return {
+        success: false,
+        error: result?.error || 'Unknown error',
+        timestamp: new Date(),
+      };
     } catch (error: any) {
       const message = this.safeErrorMessage(error);
       this.logger.error(`Error during groups sync: ${message}`);

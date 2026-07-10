@@ -28,11 +28,16 @@ export class OllamaChatProvider {
 
   constructor(private readonly config: AiConfigService) {}
 
-  async chat(messages: Array<{ role: string; content: string }>): Promise<string> {
+  async chat(
+    messages: Array<{ role: string; content: string }>,
+  ): Promise<string> {
     const config = await this.config.getConfig();
     const body: OllamaChatBody = {
       model: config.chatModel,
-      messages: messages.map((m) => ({ role: m.role as OllamaMessage['role'], content: m.content })),
+      messages: messages.map((m) => ({
+        role: m.role as OllamaMessage['role'],
+        content: m.content,
+      })),
       stream: false,
       options: {
         temperature: config.temperature,

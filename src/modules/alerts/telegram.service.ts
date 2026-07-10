@@ -69,22 +69,44 @@ ${incident.permalink ? `\n🔗 <a href="${incident.permalink}">Ver más detalles
 
   private formatDate(date: Date): string {
     return new Date(date).toLocaleString('es-ES', {
-      year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
     });
   }
 
   private getCountryFlag(countryCode: string): string {
     const flags: Record<string, string> = {
-      AR: '🇦🇷', GB: '🇬🇧', US: '🇺🇸', MX: '🇲🇽', BR: '🇧🇷',
-      CL: '🇨🇱', CO: '🇨🇴', ES: '🇪🇸', FR: '🇫🇷', DE: '🇩🇪',
-      IT: '🇮🇹', CA: '🇨🇦', AU: '🇦🇺', JP: '🇯🇵', CN: '🇨🇳', IN: '🇮🇳', RU: '🇷🇺',
+      AR: '🇦🇷',
+      GB: '🇬🇧',
+      US: '🇺🇸',
+      MX: '🇲🇽',
+      BR: '🇧🇷',
+      CL: '🇨🇱',
+      CO: '🇨🇴',
+      ES: '🇪🇸',
+      FR: '🇫🇷',
+      DE: '🇩🇪',
+      IT: '🇮🇹',
+      CA: '🇨🇦',
+      AU: '🇦🇺',
+      JP: '🇯🇵',
+      CN: '🇨🇳',
+      IN: '🇮🇳',
+      RU: '🇷🇺',
     };
     return flags[countryCode.toUpperCase()] || '🏳️';
   }
 
-  async testConnection(botToken: string): Promise<{ success: boolean; botInfo?: any; error?: string }> {
+  async testConnection(
+    botToken: string,
+  ): Promise<{ success: boolean; botInfo?: any; error?: string }> {
     try {
-      const response = await axios.get(`${this.baseUrl}${botToken}/getMe`, { timeout: 5000 });
+      const response = await axios.get(`${this.baseUrl}${botToken}/getMe`, {
+        timeout: 5000,
+      });
       return { success: true, botInfo: response.data.result };
     } catch (error: any) {
       return { success: false, error: error.message };

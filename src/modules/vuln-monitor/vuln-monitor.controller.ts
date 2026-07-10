@@ -1,4 +1,12 @@
-import { Controller, Get, Post, Param, Query, Body, NotFoundException } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Param,
+  Query,
+  Body,
+  NotFoundException,
+} from '@nestjs/common';
 import { VulnMonitorService } from './vuln-monitor.service';
 import { SyncSchedulerService } from './services/sync-scheduler.service';
 import { CveQueryDto } from './dto/cve-query.dto';

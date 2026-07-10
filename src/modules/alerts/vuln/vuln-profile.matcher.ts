@@ -1,5 +1,14 @@
-import type { CveMatchInput, ProfileInput, ProfileMatchHit, ProfileMatchResult } from './vuln-alert.types';
-import { extractCveMatchSurface, normalizeToken, tokenMatchesQuery } from './cve-match-surface';
+import type {
+  CveMatchInput,
+  ProfileInput,
+  ProfileMatchHit,
+  ProfileMatchResult,
+} from './vuln-alert.types';
+import {
+  extractCveMatchSurface,
+  normalizeToken,
+  tokenMatchesQuery,
+} from './cve-match-surface';
 
 export function matchCveToProfiles(
   cve: CveMatchInput,
@@ -38,7 +47,10 @@ function matchItem(
   if (vendor && product) {
     const vendorProduct = `${vendor}-${product}`;
     if (surface.haystack.includes(vendorProduct)) return vendorProduct;
-    if (surface.haystack.includes(vendor) && surface.haystack.includes(product)) {
+    if (
+      surface.haystack.includes(vendor) &&
+      surface.haystack.includes(product)
+    ) {
       return `${vendor}+${product}`;
     }
     return null;

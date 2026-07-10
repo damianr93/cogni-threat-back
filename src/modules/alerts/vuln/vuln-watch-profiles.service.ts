@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../../../shared/database/prisma.service';
 import { UpsertVulnProfileSchema } from './dto/vuln-profile.dto';
 import type { ProfileInput } from './vuln-alert.types';
@@ -33,7 +37,9 @@ export class VulnWatchProfilesService {
     await this.ensureOwnership(userId, id);
     const data = UpsertVulnProfileSchema.parse(body);
 
-    await this.prisma.vulnWatchProfileItem.deleteMany({ where: { profileId: id } });
+    await this.prisma.vulnWatchProfileItem.deleteMany({
+      where: { profileId: id },
+    });
 
     return this.prisma.vulnWatchProfile.update({
       where: { id },
@@ -54,26 +60,35 @@ export class VulnWatchProfilesService {
   }
 
   async ensureOwnership(userId: string, id: string) {
-    const profile = await this.prisma.vulnWatchProfile.findFirst({ where: { id, userId } });
+    const profile = await this.prisma.vulnWatchProfile.findFirst({
+      where: { id, userId },
+    });
     if (!profile) throw new NotFoundException('Vuln watch profile not found');
     return profile;
   }
 
   async validateProfileIds(userId: string, profileIds: string[]) {
     if (!profileIds.length) {
-      throw new BadRequestException('At least one profileId is required for vuln-monitor subscriptions');
+      throw new BadRequestException(
+        'At least one profileId is required for vuln-monitor subscriptions',
+      );
     }
     const profiles = await this.prisma.vulnWatchProfile.findMany({
       where: { userId, id: { in: profileIds } },
       include: { items: true },
     });
     if (profiles.length !== profileIds.length) {
-      throw new BadRequestException('One or more profileIds are invalid or do not belong to the user');
+      throw new BadRequestException(
+        'One or more profileIds are invalid or do not belong to the user',
+      );
     }
     return profiles;
   }
 
-  async loadProfilesByIds(userId: string, profileIds: string[]): Promise<ProfileInput[]> {
+  async loadProfilesByIds(
+    userId: string,
+    profileIds: string[],
+  ): Promise<ProfileInput[]> {
     const profiles = await this.prisma.vulnWatchProfile.findMany({
       where: { userId, id: { in: profileIds } },
       include: { items: true },

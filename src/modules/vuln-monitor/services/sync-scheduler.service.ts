@@ -58,21 +58,34 @@ export class SyncSchedulerService {
       this.osv.sync({ maxItems: 500 }),
     ]).then((results) => {
       for (const r of results) {
-        if (r.status === 'rejected') this.logger.error('Collector crashed:', r.reason);
+        if (r.status === 'rejected')
+          this.logger.error('Collector crashed:', r.reason);
       }
       this.vulnMonitor.invalidateStatsCache();
       this.logger.log('Manual sync finished');
     });
-    return { started: true, message: 'Sync iniciado en background. Consultá /sync/status para el estado.' };
+    return {
+      started: true,
+      message:
+        'Sync iniciado en background. Consultá /sync/status para el estado.',
+    };
   }
 
   async triggerEpssSync() {
     return this.epss.sync();
   }
 
-  async triggerBackfill(dto: { source: string; since: string; until?: string }) {
-    const { since, until } = parseBackfillDates(dto as Parameters<typeof parseBackfillDates>[0]);
-    this.logger.log(`Backfill triggered for ${dto.source} since ${since.toISOString()}`);
+  async triggerBackfill(dto: {
+    source: string;
+    since: string;
+    until?: string;
+  }) {
+    const { since, until } = parseBackfillDates(
+      dto as Parameters<typeof parseBackfillDates>[0],
+    );
+    this.logger.log(
+      `Backfill triggered for ${dto.source} since ${since.toISOString()}`,
+    );
 
     const run = async () => {
       switch (dto.source) {
@@ -95,14 +108,17 @@ export class SyncSchedulerService {
       this.logger.log(`Backfill finished for ${dto.source}`);
     };
 
-    void run().catch((err) => this.logger.error(`Backfill failed for ${dto.source}:`, err));
+    void run().catch((err) =>
+      this.logger.error(`Backfill failed for ${dto.source}:`, err),
+    );
 
     return {
       started: true,
       source: dto.source,
       since: since.toISOString(),
       until: until.toISOString(),
-      message: 'Backfill iniciado en background. Consultá /sync/status para el estado.',
+      message:
+        'Backfill iniciado en background. Consultá /sync/status para el estado.',
     };
   }
 }

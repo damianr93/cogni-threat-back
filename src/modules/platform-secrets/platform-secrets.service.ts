@@ -2,7 +2,10 @@ import { Injectable, Logger } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 import { envs } from 'libs/config/src/envs';
-import { SecretKey, SecretsService } from '../../shared/secret-store/secrets.service';
+import {
+  SecretKey,
+  SecretsService,
+} from '../../shared/secret-store/secrets.service';
 
 export interface SecretTestResult {
   ok: boolean | null;
@@ -23,7 +26,10 @@ export class PlatformSecretsService {
     private readonly secrets: SecretsService,
   ) {}
 
-  async test(key: SecretKey, overrideValue?: string): Promise<SecretTestResult> {
+  async test(
+    key: SecretKey,
+    overrideValue?: string,
+  ): Promise<SecretTestResult> {
     const value =
       overrideValue && overrideValue.trim().length > 0
         ? overrideValue.trim()
@@ -54,9 +60,15 @@ export class PlatformSecretsService {
       case 'rag_chat_temperature':
         return this.testNumber(value);
       case 'rag_query_instruct':
-        return { ok: value.trim().length > 0, message: 'Instruction prefix configured' };
+        return {
+          ok: value.trim().length > 0,
+          message: 'Instruction prefix configured',
+        };
       default:
-        return { ok: null, message: 'Validated through the Telegram login flow' };
+        return {
+          ok: null,
+          message: 'Validated through the Telegram login flow',
+        };
     }
   }
 
@@ -82,7 +94,10 @@ export class PlatformSecretsService {
           'https://api.github.com/graphql',
           { query: '{ viewer { login } }' },
           {
-            headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+            headers: {
+              Authorization: `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
             timeout: 20000,
           },
         ),
@@ -91,7 +106,10 @@ export class PlatformSecretsService {
         return { ok: false, message: res.data.errors[0].message };
       }
       const login = res.data?.data?.viewer?.login;
-      return { ok: !!login, message: login ? `Authenticated as ${login}` : 'No viewer returned' };
+      return {
+        ok: !!login,
+        message: login ? `Authenticated as ${login}` : 'No viewer returned',
+      };
     } catch (err: any) {
       return { ok: false, message: this.httpError(err) };
     }
@@ -105,7 +123,10 @@ export class PlatformSecretsService {
           timeout: 20000,
         }),
       );
-      return { ok: res.status === 200, message: 'Ransomware.live responded OK' };
+      return {
+        ok: res.status === 200,
+        message: 'Ransomware.live responded OK',
+      };
     } catch (err: any) {
       return { ok: false, message: this.httpError(err) };
     }
@@ -114,32 +135,52 @@ export class PlatformSecretsService {
   private async testBotToken(token: string): Promise<SecretTestResult> {
     try {
       const res = await firstValueFrom(
-        this.http.get(`https://api.telegram.org/bot${token}/getMe`, { timeout: 15000 }),
+        this.http.get(`https://api.telegram.org/bot${token}/getMe`, {
+          timeout: 15000,
+        }),
       );
       const ok = res.data?.ok === true;
       const username = res.data?.result?.username;
-      return { ok, message: ok ? `Bot @${username}` : 'Telegram rejected the token' };
+      return {
+        ok,
+        message: ok ? `Bot @${username}` : 'Telegram rejected the token',
+      };
     } catch (err: any) {
       return { ok: false, message: this.httpError(err) };
     }
   }
 
-  private async testOllama(key: SecretKey, value: string): Promise<SecretTestResult> {
+  private async testOllama(
+    key: SecretKey,
+    value: string,
+  ): Promise<SecretTestResult> {
     try {
-      const baseUrl = key === 'ollama_url'
-        ? value.replace(/\/+$/, '')
-        : (await this.secrets.get('ollama_url'))?.replace(/\/+$/, '') || envs.OLLAMA_URL.replace(/\/+$/, '');
-      const res = await firstValueFrom(this.http.get(`${baseUrl}/api/tags`, { timeout: 15000 }));
+      const baseUrl =
+        key === 'ollama_url'
+          ? value.replace(/\/+$/, '')
+          : (await this.secrets.get('ollama_url'))?.replace(/\/+$/, '') ||
+            envs.OLLAMA_URL.replace(/\/+$/, '');
+      const res = await firstValueFrom(
+        this.http.get(`${baseUrl}/api/tags`, { timeout: 15000 }),
+      );
       const models = Array.isArray(res.data?.models) ? res.data.models : [];
 
       if (key === 'ollama_url') {
-        return { ok: res.status === 200, message: `Ollama responded with ${models.length} model(s)` };
+        return {
+          ok: res.status === 200,
+          message: `Ollama responded with ${models.length} model(s)`,
+        };
       }
 
-      const exists = models.some((model: { name?: string }) => model.name === value || model.name?.startsWith(`${value}:`));
+      const exists = models.some(
+        (model: { name?: string }) =>
+          model.name === value || model.name?.startsWith(`${value}:`),
+      );
       return {
         ok: exists,
-        message: exists ? `Model ${value} found in Ollama` : `Model ${value} not found in Ollama`,
+        message: exists
+          ? `Model ${value} found in Ollama`
+          : `Model ${value} not found in Ollama`,
       };
     } catch (err: any) {
       return { ok: false, message: this.httpError(err) };

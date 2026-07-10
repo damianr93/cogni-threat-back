@@ -1,9 +1,17 @@
-import { CanActivate, ExecutionContext, ForbiddenException, Injectable } from '@nestjs/common';
+import {
+  CanActivate,
+  ExecutionContext,
+  ForbiddenException,
+  Injectable,
+} from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Request } from 'express';
 import { IS_PUBLIC } from '../../guards/ip-whitelist.guard';
 import { REQUIRED_ROLES } from '../decorators/roles.decorator';
-import type { AuthenticatedUser, UserRole } from '../types/authenticated-user.type';
+import type {
+  AuthenticatedUser,
+  UserRole,
+} from '../types/authenticated-user.type';
 
 type AuthRequest = Request & { user?: AuthenticatedUser };
 

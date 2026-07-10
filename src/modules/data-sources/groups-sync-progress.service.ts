@@ -52,7 +52,11 @@ export class GroupsSyncProgressService {
     };
   }
 
-  update(update: { processed: number; successCount: number; errorCount: number }): void {
+  update(update: {
+    processed: number;
+    successCount: number;
+    errorCount: number;
+  }): void {
     if (this.snapshot.status !== 'running') return;
     this.snapshot = {
       ...this.snapshot,

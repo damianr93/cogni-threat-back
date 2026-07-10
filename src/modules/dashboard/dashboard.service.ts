@@ -55,7 +55,12 @@ export class DashboardService {
 
   async getVictimsByCountryCode(countryCode: string) {
     if (!countryCode) {
-      return { success: false, error: 'Country code is required', data: [], count: 0 };
+      return {
+        success: false,
+        error: 'Country code is required',
+        data: [],
+        count: 0,
+      };
     }
     return this.ransomwareService.getVictimsByCountryCode(countryCode);
   }

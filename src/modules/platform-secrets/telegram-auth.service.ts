@@ -38,13 +38,17 @@ export class TelegramAuthService {
       throw new BadRequestException('Invalid phone number');
     }
     if (!this.secrets.storeEnabled) {
-      throw new BadRequestException('Secret store disabled: SECRETS_MASTER_KEY not configured');
+      throw new BadRequestException(
+        'Secret store disabled: SECRETS_MASTER_KEY not configured',
+      );
     }
 
     const apiId = parseInt((await this.secrets.get('telegram_api_id')) || '0');
     const apiHash = (await this.secrets.get('telegram_api_hash')) || '';
     if (!apiId || !apiHash) {
-      throw new BadRequestException('Configure Telegram API ID and API Hash before logging in');
+      throw new BadRequestException(
+        'Configure Telegram API ID and API Hash before logging in',
+      );
     }
 
     await this.discardPending();
@@ -54,7 +58,10 @@ export class TelegramAuthService {
     });
     await client.connect();
 
-    const { phoneCodeHash } = await client.sendCode({ apiId, apiHash }, phone.trim());
+    const { phoneCodeHash } = await client.sendCode(
+      { apiId, apiHash },
+      phone.trim(),
+    );
     this.pending = {
       client,
       phone: phone.trim(),
@@ -99,9 +106,13 @@ export class TelegramAuthService {
     }
 
     try {
-      const passwordInfo = await pending.client.invoke(new Api.account.GetPassword());
+      const passwordInfo = await pending.client.invoke(
+        new Api.account.GetPassword(),
+      );
       const check = await computeCheck(passwordInfo, password);
-      await pending.client.invoke(new Api.auth.CheckPassword({ password: check }));
+      await pending.client.invoke(
+        new Api.auth.CheckPassword({ password: check }),
+      );
     } catch (err: any) {
       const reason = err?.errorMessage || err?.message || '';
       await this.discardPending();
@@ -121,7 +132,11 @@ export class TelegramAuthService {
   private async finish() {
     const pending = this.requirePending();
     const session = pending.client.session.save() as unknown as string;
-    await this.secrets.set('telegram_session_string', session, pending.updatedBy);
+    await this.secrets.set(
+      'telegram_session_string',
+      session,
+      pending.updatedBy,
+    );
 
     try {
       await pending.client.disconnect();
@@ -137,11 +152,15 @@ export class TelegramAuthService {
 
   private requirePending(): PendingLogin {
     if (!this.pending) {
-      throw new BadRequestException('No pending Telegram login. Start the login flow first.');
+      throw new BadRequestException(
+        'No pending Telegram login. Start the login flow first.',
+      );
     }
     if (Date.now() - this.pending.createdAt > PENDING_TTL_MS) {
       void this.discardPending();
-      throw new BadRequestException('Login session expired. Start the login flow again.');
+      throw new BadRequestException(
+        'Login session expired. Start the login flow again.',
+      );
     }
     return this.pending;
   }

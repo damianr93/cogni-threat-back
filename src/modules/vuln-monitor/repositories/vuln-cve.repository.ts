@@ -52,18 +52,20 @@ export class VulnCveRepository {
   async upsert(data: VulnCveUpsertData) {
     const existing = await this.prisma.vulnCve.findFirst({
       where: {
-        OR: [
-          { id: data.id },
-          ...(data.cveId ? [{ cveId: data.cveId }] : []),
-        ],
+        OR: [{ id: data.id }, ...(data.cveId ? [{ cveId: data.cveId }] : [])],
       },
     });
 
     if (!existing) {
-      return { record: await this.prisma.vulnCve.create({ data: data as any }), isNew: true };
+      return {
+        record: await this.prisma.vulnCve.create({ data: data as any }),
+        isNew: true,
+      };
     }
 
-    const mergedSources = Array.from(new Set([...existing.sources, ...data.sources]));
+    const mergedSources = Array.from(
+      new Set([...existing.sources, ...data.sources]),
+    );
     const mergedCvssScore = this.pickHigher(
       existing.cvssScore ? Number(existing.cvssScore) : null,
       data.cvssScore ?? null,
@@ -74,7 +76,7 @@ export class VulnCveRepository {
         ? data.modifiedAt > existing.modifiedAt
           ? data.modifiedAt
           : existing.modifiedAt
-        : data.modifiedAt ?? existing.modifiedAt;
+        : (data.modifiedAt ?? existing.modifiedAt);
 
     // Description priority: NVD > GitHub > OSV > existing
     const description = this.mergeDescription(existing.description, data);
@@ -87,9 +89,12 @@ export class VulnCveRepository {
       cvssScore: mergedCvssScore,
       cvssVector: data.cvssVector ?? existing.cvssVector,
       cvssVersion: data.cvssVersion ?? existing.cvssVersion,
-      severity: mergedCvssScore !== null
-        ? (data.cvssScore !== null ? data.severity : existing.severity)
-        : existing.severity,
+      severity:
+        mergedCvssScore !== null
+          ? data.cvssScore !== null
+            ? data.severity
+            : existing.severity
+          : existing.severity,
       epssScore: data.epssScore ?? existing.epssScore,
       epssPercentile: data.epssPercentile ?? existing.epssPercentile,
       ...(isKev && {
@@ -97,7 +102,9 @@ export class VulnCveRepository {
         kevDueDate: data.kevDueDate ?? existing.kevDueDate,
         kevRansomware: data.kevRansomware ?? existing.kevRansomware,
       }),
-      ...(data.affectedPackages !== undefined && { affectedPackages: data.affectedPackages }),
+      ...(data.affectedPackages !== undefined && {
+        affectedPackages: data.affectedPackages,
+      }),
       ...(data.references !== undefined && { references: data.references }),
       ...(data.rawNvd !== undefined && { rawNvd: data.rawNvd }),
       ...(data.rawKev !== undefined && { rawKev: data.rawKev }),
@@ -115,7 +122,9 @@ export class VulnCveRepository {
     return { record, isNew: false };
   }
 
-  async bulkUpdateEpss(batch: { cveId: string; epss: number; percentile: number }[]) {
+  async bulkUpdateEpss(
+    batch: { cveId: string; epss: number; percentile: number }[],
+  ) {
     if (batch.length === 0) return;
     await this.prisma.$executeRaw`
       UPDATE vuln_cves SET
@@ -135,21 +144,24 @@ export class VulnCveRepository {
   async findMany(query: CveQueryDto, options?: { cachedTotal?: number }) {
     const page = Math.max(query.page ?? 1, 1);
     const limit = Math.min(query.limit ?? 50, 200);
-    const order = (query.order ?? 'desc') as 'asc' | 'desc';
+    const order = query.order ?? 'desc';
 
     const sortField: Record<string, Prisma.VulnCveOrderByWithRelationInput> = {
       modified_at: { modifiedAt: order },
       cvss_score: { cvssScore: order },
       epss_score: { epssScore: order },
     };
-    const orderBy = sortField[query.sort ?? 'modified_at'] ?? { modifiedAt: 'desc' };
+    const orderBy = sortField[query.sort ?? 'modified_at'] ?? {
+      modifiedAt: 'desc',
+    };
 
     const where = this.buildWhere(query);
-    const useCachedTotal = Object.keys(where).length === 0 && options?.cachedTotal !== undefined;
+    const useCachedTotal =
+      Object.keys(where).length === 0 && options?.cachedTotal !== undefined;
 
     const [total, data] = await Promise.all([
       useCachedTotal
-        ? Promise.resolve(options!.cachedTotal!)
+        ? Promise.resolve(options.cachedTotal!)
         : this.prisma.vulnCve.count({ where }),
       this.prisma.vulnCve.findMany({
         where,
@@ -160,7 +172,13 @@ export class VulnCveRepository {
       }),
     ]);
 
-    return { data, total, page, limit, totalPages: Math.ceil(total / limit) || 1 };
+    return {
+      data,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit) || 1,
+    };
   }
 
   private buildWhere(query: CveQueryDto): Prisma.VulnCveWhereInput {
@@ -241,9 +259,13 @@ export class VulnCveRepository {
     return Math.max(a, b);
   }
 
-  private mergeDescription(existing: string | null, data: VulnCveUpsertData): string | null {
+  private mergeDescription(
+    existing: string | null,
+    data: VulnCveUpsertData,
+  ): string | null {
     if (data.rawNvd && data.description) return data.description;
-    if (data.rawGithub && data.description && !existing) return data.description;
+    if (data.rawGithub && data.description && !existing)
+      return data.description;
     if (data.rawOsv && data.description && !existing) return data.description;
     return existing;
   }

@@ -11,7 +11,13 @@ export class AuthCryptoService {
 
   hashPassword(password: string): string {
     const salt = randomBytes(16).toString('base64url');
-    const hash = pbkdf2Sync(password, salt, this.iterations, this.keyLength, this.digest).toString('base64url');
+    const hash = pbkdf2Sync(
+      password,
+      salt,
+      this.iterations,
+      this.keyLength,
+      this.digest,
+    ).toString('base64url');
     return `pbkdf2$${this.iterations}$${salt}$${hash}`;
   }
 
@@ -26,7 +32,13 @@ export class AuthCryptoService {
       return false;
     }
 
-    const actual = pbkdf2Sync(password, salt, iterations, this.keyLength, this.digest);
+    const actual = pbkdf2Sync(
+      password,
+      salt,
+      iterations,
+      this.keyLength,
+      this.digest,
+    );
     const expected = Buffer.from(expectedHash, 'base64url');
 
     if (actual.length !== expected.length) {
@@ -63,8 +75,15 @@ export class AuthCryptoService {
       throw new UnauthorizedException('Token inválido');
     }
 
-    const payload = JSON.parse(Buffer.from(encodedBody, 'base64url').toString('utf8')) as JwtPayload;
-    if (!payload.sub || !payload.email || !payload.role || !payload.permission) {
+    const payload = JSON.parse(
+      Buffer.from(encodedBody, 'base64url').toString('utf8'),
+    ) as JwtPayload;
+    if (
+      !payload.sub ||
+      !payload.email ||
+      !payload.role ||
+      !payload.permission
+    ) {
       throw new UnauthorizedException('Token inválido');
     }
 
@@ -80,7 +99,9 @@ export class AuthCryptoService {
   }
 
   private sign(value: string): string {
-    return createHmac('sha256', this.getSecret()).update(value).digest('base64url');
+    return createHmac('sha256', this.getSecret())
+      .update(value)
+      .digest('base64url');
   }
 
   private safeCompare(a: string, b: string): boolean {

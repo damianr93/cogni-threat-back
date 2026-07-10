@@ -56,14 +56,26 @@ export class SecretsService {
   private readonly cache = new Map<SecretKey, string | null>();
 
   private readonly slots: SecretSlot[] = [
-    { key: 'nvd_api_key', label: 'NVD API Key', envFallback: () => envs.NVD_API_KEY },
-    { key: 'github_token', label: 'GitHub Token', envFallback: () => envs.GITHUB_TOKEN },
+    {
+      key: 'nvd_api_key',
+      label: 'NVD API Key',
+      envFallback: () => envs.NVD_API_KEY,
+    },
+    {
+      key: 'github_token',
+      label: 'GitHub Token',
+      envFallback: () => envs.GITHUB_TOKEN,
+    },
     {
       key: 'ransomware_api_key',
       label: 'Ransomware.live API Key',
       envFallback: () => envs.RANSOMWARE_API_KEY,
     },
-    { key: 'telegram_api_id', label: 'Telegram API ID', envFallback: () => envs.TELEGRAM_API_ID },
+    {
+      key: 'telegram_api_id',
+      label: 'Telegram API ID',
+      envFallback: () => envs.TELEGRAM_API_ID,
+    },
     {
       key: 'telegram_api_hash',
       label: 'Telegram API Hash',
@@ -74,9 +86,21 @@ export class SecretsService {
       label: 'Telegram Session String',
       envFallback: () => envs.TELEGRAM_SESSION_STRING,
     },
-    { key: 'bot_token', label: 'Telegram Bot Token', envFallback: () => envs.BOT_TOKEN },
-    { key: 'ollama_url', label: 'Ollama URL', envFallback: () => envs.OLLAMA_URL },
-    { key: 'ollama_model', label: 'Ollama chat model', envFallback: () => envs.MODEL },
+    {
+      key: 'bot_token',
+      label: 'Telegram Bot Token',
+      envFallback: () => envs.BOT_TOKEN,
+    },
+    {
+      key: 'ollama_url',
+      label: 'Ollama URL',
+      envFallback: () => envs.OLLAMA_URL,
+    },
+    {
+      key: 'ollama_model',
+      label: 'Ollama chat model',
+      envFallback: () => envs.MODEL,
+    },
     {
       key: 'ollama_embedding_model',
       label: 'Ollama embedding model',
@@ -133,12 +157,16 @@ export class SecretsService {
     let value: string | undefined;
 
     if (this.crypto.isEnabled) {
-      const row = await this.prisma.platformSecret.findUnique({ where: { key } });
+      const row = await this.prisma.platformSecret.findUnique({
+        where: { key },
+      });
       if (row) {
         try {
           value = this.crypto.decrypt(row.encryptedValue);
         } catch (err) {
-          this.logger.error(`Failed to decrypt secret '${key}': ${(err as Error).message}`);
+          this.logger.error(
+            `Failed to decrypt secret '${key}': ${(err as Error).message}`,
+          );
         }
       }
     }
@@ -181,7 +209,9 @@ export class SecretsService {
 
   /** UI-facing view. Masks values; never exposes plaintext. */
   async describe(): Promise<SecretDescriptor[]> {
-    const rows = this.crypto.isEnabled ? await this.prisma.platformSecret.findMany() : [];
+    const rows = this.crypto.isEnabled
+      ? await this.prisma.platformSecret.findMany()
+      : [];
     const dbValues = new Map(rows.map((r) => [r.key, r.encryptedValue]));
 
     return this.slots.map((slot) => {

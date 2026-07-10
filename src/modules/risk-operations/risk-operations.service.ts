@@ -1,24 +1,73 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { Prisma, RiskLevel as PrismaRiskLevel } from '@prisma/client';
 import { z } from 'zod';
 import { PrismaService } from '../../shared/database/prisma.service';
 import type { AuthenticatedUser } from '../../shared/auth/types/authenticated-user.type';
 
 const RiskLevel = z.enum(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']);
-const RiskStatus = z.enum(['IDENTIFIED', 'ANALYZED', 'TREATMENT_DEFINED', 'TREATED', 'ACCEPTED', 'CLOSED']);
+const RiskStatus = z.enum([
+  'IDENTIFIED',
+  'ANALYZED',
+  'TREATMENT_DEFINED',
+  'TREATED',
+  'ACCEPTED',
+  'CLOSED',
+]);
 const TreatmentOption = z.enum(['MITIGATE', 'ACCEPT', 'TRANSFER', 'AVOID']);
-const TreatmentStatus = z.enum(['PLANNED', 'IN_PROGRESS', 'IMPLEMENTED', 'VERIFIED']);
-const ActionStatus = z.enum(['PENDING', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED']);
-const ControlStatus = z.enum(['DRAFT', 'ACTIVE', 'MONITORING', 'NEEDS_ATTENTION', 'RETIRED']);
+const TreatmentStatus = z.enum([
+  'PLANNED',
+  'IN_PROGRESS',
+  'IMPLEMENTED',
+  'VERIFIED',
+]);
+const ActionStatus = z.enum([
+  'PENDING',
+  'IN_PROGRESS',
+  'COMPLETED',
+  'CANCELLED',
+]);
+const ControlStatus = z.enum([
+  'DRAFT',
+  'ACTIVE',
+  'MONITORING',
+  'NEEDS_ATTENTION',
+  'RETIRED',
+]);
 const KpiDirection = z.enum(['HIGHER_IS_BETTER', 'LOWER_IS_BETTER']);
-const KpiFrequency = z.enum(['DAILY', 'WEEKLY', 'MONTHLY', 'QUARTERLY', 'ANNUAL']);
+const KpiFrequency = z.enum([
+  'DAILY',
+  'WEEKLY',
+  'MONTHLY',
+  'QUARTERLY',
+  'ANNUAL',
+]);
 const KpiMetricType = z.enum(['NUMBER', 'PERCENTAGE', 'RATIO', 'INDEX']);
 
-const optionalText = z.string().trim().optional().nullable().transform((value) => value || undefined);
+const optionalText = z
+  .string()
+  .trim()
+  .optional()
+  .nullable()
+  .transform((value) => value || undefined);
 const rating = z.coerce.number().int().min(1).max(5);
 const scoreInput = z.coerce.number().int().min(1).max(5);
-const dateInput = z.string().datetime().or(z.string().date()).optional().nullable();
-const evidenceUrl = z.string().trim().url().optional().nullable().transform((value) => value || undefined);
+const dateInput = z
+  .string()
+  .datetime()
+  .or(z.string().date())
+  .optional()
+  .nullable();
+const evidenceUrl = z
+  .string()
+  .trim()
+  .url()
+  .optional()
+  .nullable()
+  .transform((value) => value || undefined);
 
 const AssetSchema = z.object({
   code: z.string().trim().min(1),
@@ -122,7 +171,14 @@ export class RiskOperationsService {
 
   listAssets(search?: string) {
     return this.prisma.informationAsset.findMany({
-      where: search ? { OR: [{ code: { contains: search, mode: 'insensitive' } }, { name: { contains: search, mode: 'insensitive' } }] } : undefined,
+      where: search
+        ? {
+            OR: [
+              { code: { contains: search, mode: 'insensitive' } },
+              { name: { contains: search, mode: 'insensitive' } },
+            ],
+          }
+        : undefined,
       orderBy: { updatedAt: 'desc' },
     });
   }
@@ -130,7 +186,12 @@ export class RiskOperationsService {
   async createAsset(user: AuthenticatedUser, body: unknown) {
     const data = AssetSchema.parse(body);
     try {
-      return await this.prisma.informationAsset.create({ data: { ...data, ownerUserId: user.id } as Prisma.InformationAssetUncheckedCreateInput });
+      return await this.prisma.informationAsset.create({
+        data: {
+          ...data,
+          ownerUserId: user.id,
+        },
+      });
     } catch (error) {
       this.handleKnownError(error, 'Asset code already exists');
     }
@@ -138,32 +199,56 @@ export class RiskOperationsService {
 
   updateAsset(id: string, body: unknown) {
     const data = AssetSchema.partial().parse(body);
-    return this.prisma.informationAsset.update({ where: { id }, data: data as Prisma.InformationAssetUncheckedUpdateInput });
+    return this.prisma.informationAsset.update({
+      where: { id },
+      data: data,
+    });
   }
 
   async removeAsset(id: string) {
-    await this.prisma.informationAsset.update({ where: { id }, data: { isActive: false } });
+    await this.prisma.informationAsset.update({
+      where: { id },
+      data: { isActive: false },
+    });
     return { success: true };
   }
 
   listRisks() {
-    return this.prisma.risk.findMany({ include: { asset: true, treatments: true, controls: true }, orderBy: { updatedAt: 'desc' } });
+    return this.prisma.risk.findMany({
+      include: { asset: true, treatments: true, controls: true },
+      orderBy: { updatedAt: 'desc' },
+    });
   }
 
   async getRiskMatrix() {
     const [criteria, risks] = await Promise.all([
       this.getCriteria(),
-      this.prisma.risk.findMany({ where: { isActive: true }, select: { id: true, likelihood: true, impact: true } }),
+      this.prisma.risk.findMany({
+        where: { isActive: true },
+        select: { id: true, likelihood: true, impact: true },
+      }),
     ]);
-    const cells = new Map<string, { probability: number; impact: number; count: number; riskIds: string[] }>();
+    const cells = new Map<
+      string,
+      { probability: number; impact: number; count: number; riskIds: string[] }
+    >();
     for (const risk of risks) {
       const key = `${risk.likelihood}-${risk.impact}`;
-      const cell = cells.get(key) ?? { probability: risk.likelihood, impact: risk.impact, count: 0, riskIds: [] };
+      const cell = cells.get(key) ?? {
+        probability: risk.likelihood,
+        impact: risk.impact,
+        count: 0,
+        riskIds: [],
+      };
       cell.count += 1;
       cell.riskIds.push(risk.id);
       cells.set(key, cell);
     }
-    return { matrixSize: criteria.matrixSize, acceptanceThreshold: criteria.acceptanceThreshold, cells: Array.from(cells.values()) };
+    return {
+      matrixSize: criteria.matrixSize,
+      acceptanceThreshold: criteria.acceptanceThreshold,
+      cells: Array.from(cells.values()),
+    };
   }
 
   async getCriteria() {
@@ -181,21 +266,35 @@ export class RiskOperationsService {
     const current = await this.ensureConfig();
     const maxScore = current.matrixSize * current.matrixSize;
     if (data.acceptanceThreshold > maxScore) {
-      throw new BadRequestException(`Acceptance threshold must be between 0 and ${maxScore}`);
+      throw new BadRequestException(
+        `Acceptance threshold must be between 0 and ${maxScore}`,
+      );
     }
     const config = await this.prisma.riskOperationsConfig.update({
       where: { key: 'default' },
       data: { acceptanceThreshold: data.acceptanceThreshold },
     });
-    return { matrixSize: config.matrixSize, acceptanceThreshold: config.acceptanceThreshold };
+    return {
+      matrixSize: config.matrixSize,
+      acceptanceThreshold: config.acceptanceThreshold,
+    };
   }
 
   async createRisk(user: AuthenticatedUser, body: unknown) {
     const data = RiskSchema.parse(body);
     await this.ensureAsset(data.assetId);
-    const scores = this.riskScores(data.likelihood, data.impact, data.residualLikelihood, data.residualImpact);
+    const scores = this.riskScores(
+      data.likelihood,
+      data.impact,
+      data.residualLikelihood,
+      data.residualImpact,
+    );
     return this.prisma.risk.create({
-      data: { ...data, ...scores, ownerUserId: user.id } as Prisma.RiskUncheckedCreateInput,
+      data: {
+        ...data,
+        ...scores,
+        ownerUserId: user.id,
+      },
       include: { asset: true, treatments: true, controls: true },
     });
   }
@@ -206,11 +305,20 @@ export class RiskOperationsService {
     const current = await this.ensureRisk(id);
     const likelihood = data.likelihood ?? current.likelihood;
     const impact = data.impact ?? current.impact;
-    const residualLikelihood = data.residualLikelihood ?? current.residualLikelihood;
+    const residualLikelihood =
+      data.residualLikelihood ?? current.residualLikelihood;
     const residualImpact = data.residualImpact ?? current.residualImpact;
     return this.prisma.risk.update({
       where: { id },
-      data: { ...data, ...this.riskScores(likelihood, impact, residualLikelihood, residualImpact) } as Prisma.RiskUncheckedUpdateInput,
+      data: {
+        ...data,
+        ...this.riskScores(
+          likelihood,
+          impact,
+          residualLikelihood,
+          residualImpact,
+        ),
+      },
       include: { asset: true, treatments: true, controls: true },
     });
   }
@@ -221,16 +329,34 @@ export class RiskOperationsService {
   }
 
   listTreatments() {
-    return this.prisma.riskTreatment.findMany({ include: { risk: { include: { asset: true } }, actions: true, controls: true }, orderBy: { updatedAt: 'desc' } });
+    return this.prisma.riskTreatment.findMany({
+      include: {
+        risk: { include: { asset: true } },
+        actions: true,
+        controls: true,
+      },
+      orderBy: { updatedAt: 'desc' },
+    });
   }
 
   async createTreatment(user: AuthenticatedUser, body: unknown) {
     const data = TreatmentSchema.parse(body);
     await this.ensureRisk(data.riskId);
-    const scores = this.residualScores(data.residualLikelihood, data.residualImpact);
+    const scores = this.residualScores(
+      data.residualLikelihood,
+      data.residualImpact,
+    );
     return this.prisma.riskTreatment.create({
-      data: { ...this.treatmentData(data), ...scores, responsibleUserId: user.id } as Prisma.RiskTreatmentUncheckedCreateInput,
-      include: { risk: { include: { asset: true } }, actions: true, controls: true },
+      data: {
+        ...this.treatmentData(data),
+        ...scores,
+        responsibleUserId: user.id,
+      } as Prisma.RiskTreatmentUncheckedCreateInput,
+      include: {
+        risk: { include: { asset: true } },
+        actions: true,
+        controls: true,
+      },
     });
   }
 
@@ -238,12 +364,20 @@ export class RiskOperationsService {
     const data = TreatmentSchema.partial().parse(body);
     if (data.riskId) await this.ensureRisk(data.riskId);
     const current = await this.ensureTreatment(id);
-    const residualLikelihood = data.residualLikelihood ?? current.residualLikelihood;
+    const residualLikelihood =
+      data.residualLikelihood ?? current.residualLikelihood;
     const residualImpact = data.residualImpact ?? current.residualImpact;
     return this.prisma.riskTreatment.update({
       where: { id },
-      data: { ...this.treatmentData(data), ...this.residualScores(residualLikelihood, residualImpact) } as Prisma.RiskTreatmentUncheckedUpdateInput,
-      include: { risk: { include: { asset: true } }, actions: true, controls: true },
+      data: {
+        ...this.treatmentData(data),
+        ...this.residualScores(residualLikelihood, residualImpact),
+      },
+      include: {
+        risk: { include: { asset: true } },
+        actions: true,
+        controls: true,
+      },
     });
   }
 
@@ -252,15 +386,28 @@ export class RiskOperationsService {
     return { success: true };
   }
 
-  async createAction(user: AuthenticatedUser, treatmentId: string, body: unknown) {
+  async createAction(
+    user: AuthenticatedUser,
+    treatmentId: string,
+    body: unknown,
+  ) {
     await this.ensureTreatment(treatmentId);
     const data = ActionSchema.parse(body);
-    return this.prisma.treatmentAction.create({ data: { ...this.actionData(data), treatmentId, ownerUserId: user.id } as Prisma.TreatmentActionUncheckedCreateInput });
+    return this.prisma.treatmentAction.create({
+      data: {
+        ...this.actionData(data),
+        treatmentId,
+        ownerUserId: user.id,
+      } as Prisma.TreatmentActionUncheckedCreateInput,
+    });
   }
 
   updateAction(id: string, body: unknown) {
     const data = ActionSchema.partial().parse(body);
-    return this.prisma.treatmentAction.update({ where: { id }, data: this.actionData(data) as Prisma.TreatmentActionUncheckedUpdateInput });
+    return this.prisma.treatmentAction.update({
+      where: { id },
+      data: this.actionData(data),
+    });
   }
 
   async removeAction(id: string) {
@@ -269,20 +416,30 @@ export class RiskOperationsService {
   }
 
   listControls() {
-    return this.prisma.operationalControl.findMany({ include: { risks: true, treatments: true, kpis: true }, orderBy: { updatedAt: 'desc' } });
+    return this.prisma.operationalControl.findMany({
+      include: { risks: true, treatments: true, kpis: true },
+      orderBy: { updatedAt: 'desc' },
+    });
   }
 
   async createControl(user: AuthenticatedUser, body: unknown) {
     const data = ControlSchema.parse(body);
     return this.prisma.operationalControl.create({
-      data: { ...this.controlData(data), ownerUserId: user.id } as Prisma.OperationalControlUncheckedCreateInput,
+      data: {
+        ...this.controlData(data),
+        ownerUserId: user.id,
+      } as Prisma.OperationalControlUncheckedCreateInput,
       include: { risks: true, treatments: true, kpis: true },
     });
   }
 
   updateControl(id: string, body: unknown) {
     const data = ControlSchema.partial().parse(body);
-    return this.prisma.operationalControl.update({ where: { id }, data: this.controlData(data) as Prisma.OperationalControlUncheckedUpdateInput, include: { risks: true, treatments: true, kpis: true } });
+    return this.prisma.operationalControl.update({
+      where: { id },
+      data: this.controlData(data),
+      include: { risks: true, treatments: true, kpis: true },
+    });
   }
 
   async removeControl(id: string) {
@@ -291,19 +448,39 @@ export class RiskOperationsService {
   }
 
   listKpis() {
-    return this.prisma.kpi.findMany({ include: { asset: true, risk: true, control: true, measurements: { orderBy: { measuredAt: 'desc' } } }, orderBy: { updatedAt: 'desc' } });
+    return this.prisma.kpi.findMany({
+      include: {
+        asset: true,
+        risk: true,
+        control: true,
+        measurements: { orderBy: { measuredAt: 'desc' } },
+      },
+      orderBy: { updatedAt: 'desc' },
+    });
   }
 
   async createKpi(body: unknown) {
     const data = KpiSchema.parse(body);
     await this.ensureKpiLinks(data.assetId, data.riskId, data.controlId);
-    return this.prisma.kpi.create({ data: data as Prisma.KpiUncheckedCreateInput, include: { asset: true, risk: true, control: true, measurements: true } });
+    return this.prisma.kpi.create({
+      data: data,
+      include: { asset: true, risk: true, control: true, measurements: true },
+    });
   }
 
   async updateKpi(id: string, body: unknown) {
     const data = KpiSchema.partial().parse(body);
     await this.ensureKpiLinks(data.assetId, data.riskId, data.controlId);
-    return this.prisma.kpi.update({ where: { id }, data: data as Prisma.KpiUncheckedUpdateInput, include: { asset: true, risk: true, control: true, measurements: { orderBy: { measuredAt: 'desc' } } } });
+    return this.prisma.kpi.update({
+      where: { id },
+      data: data,
+      include: {
+        asset: true,
+        risk: true,
+        control: true,
+        measurements: { orderBy: { measuredAt: 'desc' } },
+      },
+    });
   }
 
   async removeKpi(id: string) {
@@ -311,25 +488,47 @@ export class RiskOperationsService {
     return { success: true };
   }
 
-  async createMeasurement(user: AuthenticatedUser, kpiId: string, body: unknown) {
+  async createMeasurement(
+    user: AuthenticatedUser,
+    kpiId: string,
+    body: unknown,
+  ) {
     await this.ensureKpi(kpiId);
     const data = MeasurementSchema.parse(body);
     try {
       return await this.prisma.kpiMeasurement.create({
-        data: { ...data, measuredAt: new Date(data.measuredAt), kpiId, createdBy: user.id } as Prisma.KpiMeasurementUncheckedCreateInput,
+        data: {
+          ...data,
+          measuredAt: new Date(data.measuredAt),
+          kpiId,
+          createdBy: user.id,
+        },
       });
     } catch (error) {
-      this.handleKnownError(error, 'A measurement already exists for that date');
+      this.handleKnownError(
+        error,
+        'A measurement already exists for that date',
+      );
     }
   }
 
-  private riskScores(likelihood: number, impact: number, residualLikelihood?: number | null, residualImpact?: number | null) {
+  private riskScores(
+    likelihood: number,
+    impact: number,
+    residualLikelihood?: number | null,
+    residualImpact?: number | null,
+  ) {
     const inherentScore = likelihood * impact;
-    return { inherentScore, inherentLevel: this.level(inherentScore), ...this.residualScores(residualLikelihood, residualImpact) };
+    return {
+      inherentScore,
+      inherentLevel: this.level(inherentScore),
+      ...this.residualScores(residualLikelihood, residualImpact),
+    };
   }
 
   private residualScores(likelihood?: number | null, impact?: number | null) {
-    if (!likelihood || !impact) return { residualScore: null, residualLevel: null };
+    if (!likelihood || !impact)
+      return { residualScore: null, residualLevel: null };
     const residualScore = likelihood * impact;
     return { residualScore, residualLevel: this.level(residualScore) };
   }
@@ -350,21 +549,47 @@ export class RiskOperationsService {
   }
 
   private defaultLevels(dimension: 'PROBABILITY' | 'IMPACT') {
-    const labels = dimension === 'PROBABILITY'
-      ? ['Rara', 'Improbable', 'Posible', 'Probable', 'Frecuente']
-      : ['Menor', 'Moderado', 'Relevante', 'Severo', 'Crítico'];
-    return labels.map((label, index) => ({ id: `${dimension}-${index + 1}`, dimension, value: index + 1, label }));
+    const labels =
+      dimension === 'PROBABILITY'
+        ? ['Rara', 'Improbable', 'Posible', 'Probable', 'Frecuente']
+        : ['Menor', 'Moderado', 'Relevante', 'Severo', 'Crítico'];
+    return labels.map((label, index) => ({
+      id: `${dimension}-${index + 1}`,
+      dimension,
+      value: index + 1,
+      label,
+    }));
   }
 
-  private treatmentData(data: z.infer<typeof TreatmentSchema> | Partial<z.infer<typeof TreatmentSchema>>) {
-    return { ...data, dueDate: data.dueDate ? new Date(data.dueDate) : data.dueDate, acceptedAt: data.acceptedAt ? new Date(data.acceptedAt) : data.acceptedAt };
+  private treatmentData(
+    data:
+      | z.infer<typeof TreatmentSchema>
+      | Partial<z.infer<typeof TreatmentSchema>>,
+  ) {
+    return {
+      ...data,
+      dueDate: data.dueDate ? new Date(data.dueDate) : data.dueDate,
+      acceptedAt: data.acceptedAt ? new Date(data.acceptedAt) : data.acceptedAt,
+    };
   }
 
-  private actionData(data: z.infer<typeof ActionSchema> | Partial<z.infer<typeof ActionSchema>>) {
-    return { ...data, dueDate: data.dueDate ? new Date(data.dueDate) : data.dueDate, completedAt: data.completedAt ? new Date(data.completedAt) : data.completedAt };
+  private actionData(
+    data: z.infer<typeof ActionSchema> | Partial<z.infer<typeof ActionSchema>>,
+  ) {
+    return {
+      ...data,
+      dueDate: data.dueDate ? new Date(data.dueDate) : data.dueDate,
+      completedAt: data.completedAt
+        ? new Date(data.completedAt)
+        : data.completedAt,
+    };
   }
 
-  private controlData(data: z.infer<typeof ControlSchema> | Partial<z.infer<typeof ControlSchema>>) {
+  private controlData(
+    data:
+      | z.infer<typeof ControlSchema>
+      | Partial<z.infer<typeof ControlSchema>>,
+  ) {
     const { riskIds, treatmentIds, parameters, ...rest } = data;
     void riskIds;
     void treatmentIds;
@@ -375,7 +600,9 @@ export class RiskOperationsService {
   }
 
   private async ensureAsset(id: string) {
-    const asset = await this.prisma.informationAsset.findUnique({ where: { id } });
+    const asset = await this.prisma.informationAsset.findUnique({
+      where: { id },
+    });
     if (!asset) throw new NotFoundException('Asset not found');
   }
 
@@ -386,7 +613,9 @@ export class RiskOperationsService {
   }
 
   private async ensureTreatment(id: string) {
-    const treatment = await this.prisma.riskTreatment.findUnique({ where: { id } });
+    const treatment = await this.prisma.riskTreatment.findUnique({
+      where: { id },
+    });
     if (!treatment) throw new NotFoundException('Risk treatment not found');
     return treatment;
   }
@@ -396,17 +625,26 @@ export class RiskOperationsService {
     if (!kpi) throw new NotFoundException('KPI not found');
   }
 
-  private async ensureKpiLinks(assetId?: string, riskId?: string, controlId?: string) {
+  private async ensureKpiLinks(
+    assetId?: string,
+    riskId?: string,
+    controlId?: string,
+  ) {
     if (assetId) await this.ensureAsset(assetId);
     if (riskId) await this.ensureRisk(riskId);
     if (controlId) {
-      const control = await this.prisma.operationalControl.findUnique({ where: { id: controlId } });
+      const control = await this.prisma.operationalControl.findUnique({
+        where: { id: controlId },
+      });
       if (!control) throw new NotFoundException('Control not found');
     }
   }
 
   private handleKnownError(error: unknown, message: string): never {
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === 'P2002'
+    ) {
       throw new BadRequestException(message);
     }
     throw error;

@@ -10,7 +10,11 @@ import { DatabaseModule } from '../../shared/database/database.module';
     HttpModule.register({ timeout: 60000, maxRedirects: 5 }),
     DatabaseModule,
   ],
-  providers: [RansomwareService, RansomwareApiClientService, RansomwareDataProcessorService],
+  providers: [
+    RansomwareService,
+    RansomwareApiClientService,
+    RansomwareDataProcessorService,
+  ],
   exports: [RansomwareService],
 })
 export class RansomwareModule {}

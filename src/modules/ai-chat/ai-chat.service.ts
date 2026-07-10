@@ -66,7 +66,10 @@ export class AiChatService {
     };
   }
 
-  async getHistory(conversationId: number, userId: string): Promise<ChatMessage[]> {
+  async getHistory(
+    conversationId: number,
+    userId: string,
+  ): Promise<ChatMessage[]> {
     await this.getConversationOrThrow(conversationId, userId);
     const messages = await this.prisma.aiConversationMessage.findMany({
       where: { conversationId },
@@ -122,9 +125,17 @@ export class AiChatService {
       orderBy: { timestamp: 'asc' },
       take: 12,
     });
-    const history = historyRows.map((m) => ({ role: m.role, content: m.content }));
+    const history = historyRows.map((m) => ({
+      role: m.role,
+      content: m.content,
+    }));
 
-    const responseText = await this.rag.ask({ question, history, categories, sources });
+    const responseText = await this.rag.ask({
+      question,
+      history,
+      categories,
+      sources,
+    });
 
     const assistantTs = new Date();
     await this.prisma.aiConversationMessage.create({
@@ -137,7 +148,8 @@ export class AiChatService {
     });
 
     if (conv.title === 'Nueva conversación') {
-      const autoTitle = question.slice(0, 60) + (question.length > 60 ? '…' : '');
+      const autoTitle =
+        question.slice(0, 60) + (question.length > 60 ? '…' : '');
       await this.prisma.aiConversation.update({
         where: { id: conversationId },
         data: { title: autoTitle },
@@ -196,7 +208,9 @@ export class AiChatService {
       where: { id: conversationId, userId, active: true },
     });
     if (!conv) {
-      throw new NotFoundException(`Conversación ${conversationId} no encontrada`);
+      throw new NotFoundException(
+        `Conversación ${conversationId} no encontrada`,
+      );
     }
     return conv;
   }

@@ -21,12 +21,16 @@ export class SyncStateRepository {
   }
 
   async getLastSync(source: VulnSource) {
-    const row = await this.prisma.vulnSyncState.findUnique({ where: { source } });
+    const row = await this.prisma.vulnSyncState.findUnique({
+      where: { source },
+    });
     return row?.lastSyncAt ?? null;
   }
 
   async getCursor(source: VulnSource) {
-    const row = await this.prisma.vulnSyncState.findUnique({ where: { source } });
+    const row = await this.prisma.vulnSyncState.findUnique({
+      where: { source },
+    });
     return row?.lastCursor ?? null;
   }
 
@@ -40,7 +44,12 @@ export class SyncStateRepository {
     });
   }
 
-  async markSuccess(source: VulnSource, count: number, cursor?: string, watermark?: Date) {
+  async markSuccess(
+    source: VulnSource,
+    count: number,
+    cursor?: string,
+    watermark?: Date,
+  ) {
     await this.prisma.vulnSyncState.update({
       where: { source },
       data: {

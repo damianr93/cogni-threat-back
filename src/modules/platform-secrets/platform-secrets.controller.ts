@@ -11,7 +11,10 @@ import {
 import { CurrentUser } from '../../shared/auth/decorators/current-user.decorator';
 import { Roles } from '../../shared/auth/decorators/roles.decorator';
 import type { AuthenticatedUser } from '../../shared/auth/types/authenticated-user.type';
-import { SecretKey, SecretsService } from '../../shared/secret-store/secrets.service';
+import {
+  SecretKey,
+  SecretsService,
+} from '../../shared/secret-store/secrets.service';
 import { PlatformSecretsService } from './platform-secrets.service';
 import { TelegramAuthService } from './telegram-auth.service';
 

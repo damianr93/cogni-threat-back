@@ -1,4 +1,12 @@
-import { Controller, Get, Post, Put, Delete, Body, Param } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Body,
+  Param,
+} from '@nestjs/common';
 import { DataSourcesService } from './data-sources.service';
 import { SyncRecoveryService } from './sync-recovery.service';
 import { RequireWrite } from '../../shared/auth/decorators/require-write.decorator';
@@ -33,7 +41,10 @@ export class DataSourcesController {
 
   @Put(':id')
   @RequireWrite()
-  async updateDataSource(@Param('id') id: string, @Body() updateDataSourceDto: any) {
+  async updateDataSource(
+    @Param('id') id: string,
+    @Body() updateDataSourceDto: any,
+  ) {
     return this.dataSourcesService.updateDataSource(id, updateDataSourceDto);
   }
 

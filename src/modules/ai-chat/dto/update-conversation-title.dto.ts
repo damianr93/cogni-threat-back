@@ -5,4 +5,6 @@ export const UpdateConversationTitleSchema = z.object({
   title: z.string().min(1).max(200),
 });
 
-export class UpdateConversationTitleDto extends createZodDto(UpdateConversationTitleSchema) {}
+export class UpdateConversationTitleDto extends createZodDto(
+  UpdateConversationTitleSchema,
+) {}

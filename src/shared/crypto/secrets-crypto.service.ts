@@ -1,5 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'crypto';
+import {
+  createCipheriv,
+  createDecipheriv,
+  createHash,
+  randomBytes,
+} from 'crypto';
 
 /**
  * Reversible encryption for operational secrets stored in the database.
@@ -33,11 +38,16 @@ export class SecretsCryptoService {
 
   encrypt(plaintext: string): string {
     if (!this.key) {
-      throw new Error('Secret encryption unavailable: SECRETS_MASTER_KEY not configured');
+      throw new Error(
+        'Secret encryption unavailable: SECRETS_MASTER_KEY not configured',
+      );
     }
     const iv = randomBytes(this.ivLength);
     const cipher = createCipheriv(this.algorithm, this.key, iv);
-    const ciphertext = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()]);
+    const ciphertext = Buffer.concat([
+      cipher.update(plaintext, 'utf8'),
+      cipher.final(),
+    ]);
     const authTag = cipher.getAuthTag();
     return [
       iv.toString('base64'),
@@ -48,7 +58,9 @@ export class SecretsCryptoService {
 
   decrypt(payload: string): string {
     if (!this.key) {
-      throw new Error('Secret decryption unavailable: SECRETS_MASTER_KEY not configured');
+      throw new Error(
+        'Secret decryption unavailable: SECRETS_MASTER_KEY not configured',
+      );
     }
     const [ivB64, tagB64, dataB64] = payload.split(':');
     if (!ivB64 || !tagB64 || !dataB64) {
@@ -59,7 +71,10 @@ export class SecretsCryptoService {
     const ciphertext = Buffer.from(dataB64, 'base64');
     const decipher = createDecipheriv(this.algorithm, this.key, iv);
     decipher.setAuthTag(authTag);
-    return Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString('utf8');
+    return Buffer.concat([
+      decipher.update(ciphertext),
+      decipher.final(),
+    ]).toString('utf8');
   }
 
   /**

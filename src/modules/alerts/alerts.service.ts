@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { Prisma, AlertSource } from '@prisma/client';
 import { PrismaService } from '../../shared/database/prisma.service';
 import { AlertProcessorService } from './alert-processor.service';
@@ -147,7 +151,8 @@ const SOURCE_SCHEMAS: Record<AlertSourceKey, AlertSourceSchema> = {
   'telegram-channel': {
     key: 'telegram-channel',
     title: 'Canales de Telegram',
-    description: 'Mensajes entrantes desde los canales monitoreados vía MTProto',
+    description:
+      'Mensajes entrantes desde los canales monitoreados vía MTProto',
     defaults: {
       channels: [],
       keywords: [],
@@ -159,14 +164,16 @@ const SOURCE_SCHEMAS: Record<AlertSourceKey, AlertSourceSchema> = {
         label: 'Canales a vigilar',
         type: 'multi-select',
         optionsSource: 'telegramChannels',
-        helperText: 'Si se deja vacío se evalúan todos los canales configurados',
+        helperText:
+          'Si se deja vacío se evalúan todos los canales configurados',
       },
       {
         name: 'keywords',
         label: 'Palabras clave (obligatorio)',
         type: 'chips',
         required: true,
-        helperText: 'El mensaje debe contener estas palabras para disparar la alerta',
+        helperText:
+          'El mensaje debe contener estas palabras para disparar la alerta',
       },
       {
         name: 'matchType',
@@ -208,7 +215,10 @@ export class AlertsService {
     });
   }
 
-  async createNotificationChannel(userId: string, data: { label?: string; chatIds: string[] }) {
+  async createNotificationChannel(
+    userId: string,
+    data: { label?: string; chatIds: string[] },
+  ) {
     return this.prisma.userNotificationChannel.create({
       data: {
         userId,
@@ -252,7 +262,9 @@ export class AlertsService {
     }
 
     if (channel.subscriptions.length > 0) {
-      throw new BadRequestException('No se puede borrar un canal con suscripciones activas');
+      throw new BadRequestException(
+        'No se puede borrar un canal con suscripciones activas',
+      );
     }
 
     await this.prisma.userNotificationChannel.delete({
@@ -276,18 +288,26 @@ export class AlertsService {
       ...subscription,
       source: {
         ...subscription.source,
-        schema: SOURCE_SCHEMAS[subscription.source.key as AlertSourceKey] ?? null,
+        schema:
+          SOURCE_SCHEMAS[subscription.source.key as AlertSourceKey] ?? null,
       },
     }));
   }
 
   async createSubscription(
     userId: string,
-    data: { sourceKey: AlertSourceKey; name: string; enabled?: boolean; deliveryChannelId: string; settings?: Prisma.JsonValue },
+    data: {
+      sourceKey: AlertSourceKey;
+      name: string;
+      enabled?: boolean;
+      deliveryChannelId: string;
+      settings?: Prisma.JsonValue;
+    },
   ) {
     const source = await this.findSourceByKey(data.sourceKey);
     await this.ensureChannelOwnership(data.deliveryChannelId, userId);
-    const settings = (data.settings ?? SOURCE_SCHEMAS[data.sourceKey].defaults) as Prisma.InputJsonValue;
+    const settings = (data.settings ??
+      SOURCE_SCHEMAS[data.sourceKey].defaults) as Prisma.InputJsonValue;
 
     if (data.sourceKey === 'vuln-monitor') {
       await this.validateVulnSubscriptionSettings(userId, settings);
@@ -378,14 +398,16 @@ export class AlertsService {
     return { success: true };
   }
 
-  async getAlertHistory(params: {
-    limit?: number;
-    page?: number;
-    from?: string;
-    to?: string;
-    q?: string;
-    order?: 'asc' | 'desc';
-  } = {}) {
+  async getAlertHistory(
+    params: {
+      limit?: number;
+      page?: number;
+      from?: string;
+      to?: string;
+      q?: string;
+      order?: 'asc' | 'desc';
+    } = {},
+  ) {
     const limit = Math.min(params.limit ?? 50, 200);
     const page = Math.max(params.page ?? 1, 1);
     const order = params.order ?? 'desc';
@@ -420,8 +442,12 @@ export class AlertsService {
         { sourceKey: { contains: search, mode: 'insensitive' } },
         { eventId: { contains: search, mode: 'insensitive' } },
         { errorMessage: { contains: search, mode: 'insensitive' } },
-        ...(payloadAlertIds.length > 0 ? [{ id: { in: payloadAlertIds } }] : []),
-        ...(extraIncidentIds.length > 0 ? [{ incidentId: { in: extraIncidentIds } }] : []),
+        ...(payloadAlertIds.length > 0
+          ? [{ id: { in: payloadAlertIds } }]
+          : []),
+        ...(extraIncidentIds.length > 0
+          ? [{ incidentId: { in: extraIncidentIds } }]
+          : []),
       ];
     }
 
@@ -449,7 +475,10 @@ export class AlertsService {
     const data = await Promise.all(
       rawData.map(async (item) => {
         const payload = (item.payload as Record<string, unknown> | null) || {};
-        if (typeof payload.telegramMessage === 'string' && payload.telegramMessage.length > 0) {
+        if (
+          typeof payload.telegramMessage === 'string' &&
+          payload.telegramMessage.length > 0
+        ) {
           return item;
         }
         const resolved = await this.resolveAlertMessage(
@@ -515,7 +544,9 @@ export class AlertsService {
         ids.push(v.ransomwareLiveId);
         ids.push(v.id);
       });
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
 
     try {
       // Telegram channel messages: search in content and channelName
@@ -532,7 +563,9 @@ export class AlertsService {
         ids.push(m.id);
         if (m.messageId) ids.push(m.messageId);
       });
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
 
     return [...new Set(ids)]; // deduplicate
   }
@@ -566,7 +599,9 @@ export class AlertsService {
           `<b>Fecha:</b> ${dateStr}`,
         ];
         if (victim.description) {
-          lines.push(`<b>Descripción:</b> ${victim.description.substring(0, 300)}${victim.description.length > 300 ? '...' : ''}`);
+          lines.push(
+            `<b>Descripción:</b> ${victim.description.substring(0, 300)}${victim.description.length > 300 ? '...' : ''}`,
+          );
         }
         if (victim.permalink) {
           lines.push(`<a href="${victim.permalink}">Ver más detalles</a>`);
@@ -581,7 +616,9 @@ export class AlertsService {
           const parts = ['<b>Mensaje de canal (desde payload)</b>'];
           if (channelName) parts.push(`Canal: ${channelName}`);
           parts.push('');
-          parts.push(content.length > 800 ? content.substring(0, 800) + '...' : content);
+          parts.push(
+            content.length > 800 ? content.substring(0, 800) + '...' : content,
+          );
           return parts.join('\n');
         }
         const msg = await this.prisma.telegramChannelMessage.findFirst({
@@ -590,7 +627,10 @@ export class AlertsService {
           },
         });
         if (!msg) return null;
-        const text = msg.content.length > 800 ? msg.content.substring(0, 800) + '...' : msg.content;
+        const text =
+          msg.content.length > 800
+            ? msg.content.substring(0, 800) + '...'
+            : msg.content;
         return [
           '<b>Mensaje de canal (recuperado de BD)</b>',
           `Canal: ${msg.channelName}`,
@@ -634,7 +674,10 @@ export class AlertsService {
     return source;
   }
 
-  private async validateVulnSubscriptionSettings(userId: string, settings: unknown) {
+  private async validateVulnSubscriptionSettings(
+    userId: string,
+    settings: unknown,
+  ) {
     const profileIds = Array.isArray((settings as any)?.profileIds)
       ? ((settings as any).profileIds as string[])
       : [];
@@ -647,7 +690,9 @@ export class AlertsService {
     });
 
     if (!channel) {
-      throw new BadRequestException('El canal seleccionado no pertenece al usuario');
+      throw new BadRequestException(
+        'El canal seleccionado no pertenece al usuario',
+      );
     }
   }
 
@@ -658,10 +703,15 @@ export class AlertsService {
     });
   }
 
-  async createMonitoredChannel(data: { username: string; description?: string }) {
+  async createMonitoredChannel(data: {
+    username: string;
+    description?: string;
+  }) {
     // Asegurar que el username tenga @
-    const username = data.username.startsWith('@') ? data.username : `@${data.username}`;
-    
+    const username = data.username.startsWith('@')
+      ? data.username
+      : `@${data.username}`;
+
     const channel = await this.prisma.telegramMonitoredChannel.create({
       data: {
         username,
@@ -672,15 +722,20 @@ export class AlertsService {
 
     // Recargar canales en el servicio de Telegram
     await this.reloadTelegramChannels();
-    
+
     return channel;
   }
 
-  async updateMonitoredChannel(id: string, data: { username?: string; description?: string; isActive?: boolean }) {
+  async updateMonitoredChannel(
+    id: string,
+    data: { username?: string; description?: string; isActive?: boolean },
+  ) {
     const updateData: any = {};
-    
+
     if (data.username !== undefined) {
-      updateData.username = data.username.startsWith('@') ? data.username : `@${data.username}`;
+      updateData.username = data.username.startsWith('@')
+        ? data.username
+        : `@${data.username}`;
     }
     if (data.description !== undefined) {
       updateData.description = data.description;

@@ -16,7 +16,8 @@ export class RansomwareService {
 
   private safeErrorMessage(error: any): string {
     if (typeof error === 'string') return error;
-    if (error?.code === 'ETIMEDOUT' || error?.code === 'ECONNABORTED') return 'Connection timeout';
+    if (error?.code === 'ETIMEDOUT' || error?.code === 'ECONNABORTED')
+      return 'Connection timeout';
     if (error?.code === 'ENETUNREACH') return 'Network unreachable';
     if (error?.response?.status) return `HTTP ${error.response.status}`;
     return error?.message ? 'Operation failed' : 'Unknown error';
@@ -33,7 +34,9 @@ export class RansomwareService {
 
         for (let i = 0; i < victimsData.length; i += CHUNK_SIZE) {
           const chunk = victimsData.slice(i, i + CHUNK_SIZE);
-          const processedChunk = chunk.map(victim => this.dataProcessor.processVictimData(victim));
+          const processedChunk = chunk.map((victim) =>
+            this.dataProcessor.processVictimData(victim),
+          );
           await this.saveVictimsToDatabase(processedChunk);
           totalProcessed += processedChunk.length;
           processedChunk.length = 0;
@@ -41,9 +44,18 @@ export class RansomwareService {
 
         victimsData.length = 0;
 
-        return { success: true, data: [], count: totalProcessed, timestamp: new Date() };
+        return {
+          success: true,
+          data: [],
+          count: totalProcessed,
+          timestamp: new Date(),
+        };
       } else {
-        return { success: false, error: 'Victims data is not an array', timestamp: new Date() };
+        return {
+          success: false,
+          error: 'Victims data is not an array',
+          timestamp: new Date(),
+        };
       }
     }
 
@@ -64,7 +76,9 @@ export class RansomwareService {
         if (countryVictims.length > 0) {
           for (let i = 0; i < countryVictims.length; i += CHUNK_SIZE) {
             const chunk = countryVictims.slice(i, i + CHUNK_SIZE);
-            const processedChunk = chunk.map(victim => this.dataProcessor.processVictimData(victim));
+            const processedChunk = chunk.map((victim) =>
+              this.dataProcessor.processVictimData(victim),
+            );
             await this.saveVictimsToDatabase(processedChunk);
             totalProcessed += processedChunk.length;
             processedChunk.length = 0;
@@ -77,12 +91,25 @@ export class RansomwareService {
       result.data.length = 0;
 
       if (totalProcessed > 0) {
-        return { success: true, data: [], count: totalProcessed, timestamp: new Date() };
+        return {
+          success: true,
+          data: [],
+          count: totalProcessed,
+          timestamp: new Date(),
+        };
       } else {
-        return { success: false, error: 'No victims found in any country', timestamp: new Date() };
+        return {
+          success: false,
+          error: 'No victims found in any country',
+          timestamp: new Date(),
+        };
       }
     } else {
-      return { success: false, error: result.error || 'Unknown error', timestamp: new Date() };
+      return {
+        success: false,
+        error: result.error || 'Unknown error',
+        timestamp: new Date(),
+      };
     }
   }
 
@@ -98,7 +125,9 @@ export class RansomwareService {
 
         for (let i = 0; i < groupsData.length; i += CHUNK_SIZE) {
           const chunk = groupsData.slice(i, i + CHUNK_SIZE);
-          const processedChunk = chunk.map(group => this.dataProcessor.processGroupData(group));
+          const processedChunk = chunk.map((group) =>
+            this.dataProcessor.processGroupData(group),
+          );
           await this.saveGroupsToDatabase(processedChunk);
           totalProcessed += processedChunk.length;
           processedChunk.length = 0;
@@ -106,9 +135,18 @@ export class RansomwareService {
 
         groupsData.length = 0;
 
-        return { success: true, data: [], count: totalProcessed, timestamp: new Date() };
+        return {
+          success: true,
+          data: [],
+          count: totalProcessed,
+          timestamp: new Date(),
+        };
       } else {
-        return { success: false, error: 'Groups data is not an array', timestamp: new Date() };
+        return {
+          success: false,
+          error: 'Groups data is not an array',
+          timestamp: new Date(),
+        };
       }
     }
 
@@ -117,30 +155,46 @@ export class RansomwareService {
 
   async syncGroupsData(options?: {
     onStart?: (total: number) => void;
-    onProgress?: (update: { processed: number; successCount: number; errorCount: number }) => void;
+    onProgress?: (update: {
+      processed: number;
+      successCount: number;
+      errorCount: number;
+    }) => void;
   }) {
     try {
       const groupsResult = await this.apiClient.getGroups();
 
       if (!groupsResult.success || !groupsResult.data) {
-        return { success: false, error: 'Failed to fetch groups list', timestamp: new Date() };
+        return {
+          success: false,
+          error: 'Failed to fetch groups list',
+          timestamp: new Date(),
+        };
       }
 
       const groupsData = groupsResult.data.groups || groupsResult.data;
 
       if (!Array.isArray(groupsData) || groupsData.length === 0) {
-        return { success: false, error: 'No groups found', timestamp: new Date() };
+        return {
+          success: false,
+          error: 'No groups found',
+          timestamp: new Date(),
+        };
       }
 
       const groupNames = groupsData
-        .map(group => {
+        .map((group) => {
           if (typeof group === 'string') return group;
           return group.group || group.name || group.title || '';
         })
-        .filter(name => name && name.trim().length > 0);
+        .filter((name) => name && name.trim().length > 0);
 
       if (groupNames.length === 0) {
-        return { success: false, error: 'No valid group names found', timestamp: new Date() };
+        return {
+          success: false,
+          error: 'No valid group names found',
+          timestamp: new Date(),
+        };
       }
 
       const BATCH_SIZE = 3;
@@ -154,47 +208,62 @@ export class RansomwareService {
 
       for (let i = 0; i < totalGroups; i += BATCH_SIZE) {
         const batch = groupNames.slice(i, i + BATCH_SIZE);
-        const batchResults = await Promise.all(batch.map(async groupName => {
-          try {
-            const response = await this.apiClient.Group(groupName);
+        const batchResults = await Promise.all(
+          batch.map(async (groupName) => {
+            try {
+              const response = await this.apiClient.Group(groupName);
 
-            if (response.success && response.data) {
-              const groupDataWithName = {
-                ...response.data,
-                group: response.data.group || response.data.name || groupName,
-              };
+              if (response.success && response.data) {
+                const groupDataWithName = {
+                  ...response.data,
+                  group: response.data.group || response.data.name || groupName,
+                };
 
-              const processedGroup = this.dataProcessor.processGroupData(groupDataWithName);
+                const processedGroup =
+                  this.dataProcessor.processGroupData(groupDataWithName);
 
-              if (!processedGroup.group || processedGroup.group === 'Unknown Group') {
-                processedGroup.group = groupName;
-              }
+                if (
+                  !processedGroup.group ||
+                  processedGroup.group === 'Unknown Group'
+                ) {
+                  processedGroup.group = groupName;
+                }
 
-              const locationsCount = Array.isArray(processedGroup.locations) ? processedGroup.locations.length : 0;
-              totalLocations += locationsCount;
+                const locationsCount = Array.isArray(processedGroup.locations)
+                  ? processedGroup.locations.length
+                  : 0;
+                totalLocations += locationsCount;
 
-              await this.saveSingleGroupToDatabase(processedGroup);
-              successCount++;
+                await this.saveSingleGroupToDatabase(processedGroup);
+                successCount++;
 
-              return { group: groupName, locationsCount };
-            } else {
-              errorCount++;
-              const errorMsg = response.error || 'Unknown error';
-              if (errorMsg.includes('timeout') || errorMsg.includes('ETIMEDOUT')) {
-                this.logger.warn(`${groupName}: Timeout`);
-              } else if (errorMsg.includes('ENETUNREACH')) {
-                this.logger.warn(`${groupName}: Network unreachable`);
+                return { group: groupName, locationsCount };
               } else {
-                this.logger.warn(`${groupName}: ${this.safeErrorMessage(errorMsg)}`);
+                errorCount++;
+                const errorMsg = response.error || 'Unknown error';
+                if (
+                  errorMsg.includes('timeout') ||
+                  errorMsg.includes('ETIMEDOUT')
+                ) {
+                  this.logger.warn(`${groupName}: Timeout`);
+                } else if (errorMsg.includes('ENETUNREACH')) {
+                  this.logger.warn(`${groupName}: Network unreachable`);
+                } else {
+                  this.logger.warn(
+                    `${groupName}: ${this.safeErrorMessage(errorMsg)}`,
+                  );
+                }
+                return null;
               }
+            } catch (groupError: any) {
+              errorCount++;
+              this.logger.warn(
+                `${groupName}: ${this.safeErrorMessage(groupError)}`,
+              );
               return null;
             }
-          } catch (groupError: any) {
-            errorCount++;
-            this.logger.warn(`${groupName}: ${this.safeErrorMessage(groupError)}`);
-            return null;
-          }
-        }));
+          }),
+        );
 
         batchResults.length = 0;
 
@@ -205,7 +274,7 @@ export class RansomwareService {
         });
 
         if (i + BATCH_SIZE < totalGroups) {
-          await new Promise(resolve => setTimeout(resolve, DELAY_MS));
+          await new Promise((resolve) => setTimeout(resolve, DELAY_MS));
         }
       }
 
@@ -231,13 +300,19 @@ export class RansomwareService {
       });
 
       if (!groupData) {
-        return { success: false, error: `Grupo "${groupName}" no encontrado`, timestamp: new Date() };
+        return {
+          success: false,
+          error: `Grupo "${groupName}" no encontrado`,
+          timestamp: new Date(),
+        };
       }
 
       return { success: true, data: groupData, timestamp: new Date() };
     } catch (error: any) {
       const message = this.safeErrorMessage(error);
-      this.logger.warn(`Error fetching group details for ${groupName}: ${message}`);
+      this.logger.warn(
+        `Error fetching group details for ${groupName}: ${message}`,
+      );
       return { success: false, error: message, timestamp: new Date() };
     }
   }
@@ -259,11 +334,22 @@ export class RansomwareService {
         },
       });
 
-      return { success: true, data: groups, count: groups.length, timestamp: new Date() };
+      return {
+        success: true,
+        data: groups,
+        count: groups.length,
+        timestamp: new Date(),
+      };
     } catch (error: any) {
       const message = this.safeErrorMessage(error);
       this.logger.warn(`Error fetching all groups: ${message}`);
-      return { success: false, error: message, data: [], count: 0, timestamp: new Date() };
+      return {
+        success: false,
+        error: message,
+        data: [],
+        count: 0,
+        timestamp: new Date(),
+      };
     }
   }
 
@@ -320,14 +406,32 @@ export class RansomwareService {
       where,
       orderBy: { discovered: 'desc' },
       select: {
-        id: true, victim: true, group: true, country: true, activity: true,
-        discovered: true, website: true, description: true, postUrl: true,
-        screenshot: true, permalink: true, attackDate: true, duplicates: true,
-        extrainfos: true, infostealer: true, press: true, ransomwareLiveId: true,
+        id: true,
+        victim: true,
+        group: true,
+        country: true,
+        activity: true,
+        discovered: true,
+        website: true,
+        description: true,
+        postUrl: true,
+        screenshot: true,
+        permalink: true,
+        attackDate: true,
+        duplicates: true,
+        extrainfos: true,
+        infostealer: true,
+        press: true,
+        ransomwareLiveId: true,
       },
     });
 
-    return { success: true, data: victims, count: victims.length, timestamp: new Date() };
+    return {
+      success: true,
+      data: victims,
+      count: victims.length,
+      timestamp: new Date(),
+    };
   }
 
   async getVictimsByCountryCode(countryCode: string) {
@@ -336,22 +440,49 @@ export class RansomwareService {
       where: { country: normalizedCode },
       orderBy: { discovered: 'desc' },
       select: {
-        id: true, victim: true, group: true, country: true, activity: true,
-        discovered: true, website: true, description: true, postUrl: true,
-        screenshot: true, permalink: true, attackDate: true, duplicates: true,
-        extrainfos: true, infostealer: true, press: true, ransomwareLiveId: true,
+        id: true,
+        victim: true,
+        group: true,
+        country: true,
+        activity: true,
+        discovered: true,
+        website: true,
+        description: true,
+        postUrl: true,
+        screenshot: true,
+        permalink: true,
+        attackDate: true,
+        duplicates: true,
+        extrainfos: true,
+        infostealer: true,
+        press: true,
+        ransomwareLiveId: true,
       },
     });
 
-    return { success: true, data: victims, count: victims.length, timestamp: new Date() };
+    return {
+      success: true,
+      data: victims,
+      count: victims.length,
+      timestamp: new Date(),
+    };
   }
 
   async syncData() {
     try {
-      const [victimsResult, groupsResult] = await Promise.all([this.getVictims(), this.getGroups()]);
+      const [victimsResult, groupsResult] = await Promise.all([
+        this.getVictims(),
+        this.getGroups(),
+      ]);
 
-      const victimsCount = (victimsResult.success && 'count' in victimsResult) ? victimsResult.count : 0;
-      const groupsCount = (groupsResult.success && 'count' in groupsResult) ? groupsResult.count : 0;
+      const victimsCount =
+        victimsResult.success && 'count' in victimsResult
+          ? victimsResult.count
+          : 0;
+      const groupsCount =
+        groupsResult.success && 'count' in groupsResult
+          ? groupsResult.count
+          : 0;
 
       const result = {
         success: true,
@@ -360,10 +491,18 @@ export class RansomwareService {
         timestamp: new Date(),
       };
 
-      if (victimsResult.success && 'data' in victimsResult && Array.isArray(victimsResult.data)) {
+      if (
+        victimsResult.success &&
+        'data' in victimsResult &&
+        Array.isArray(victimsResult.data)
+      ) {
         victimsResult.data.length = 0;
       }
-      if (groupsResult.success && 'data' in groupsResult && Array.isArray(groupsResult.data)) {
+      if (
+        groupsResult.success &&
+        'data' in groupsResult &&
+        Array.isArray(groupsResult.data)
+      ) {
         groupsResult.data.length = 0;
       }
 
@@ -381,12 +520,20 @@ export class RansomwareService {
       distinct: ['group'],
       orderBy: { group: 'asc' },
     });
-    return groups.map(g => g.group).filter(Boolean);
+    return groups.map((g) => g.group).filter(Boolean);
   }
 
-  private async getTotalGroups() { return this.prisma.ransomwareGroupsData.count(); }
-  private async getTotalVictims() { return this.prisma.ransomwareVictimsData.count(); }
-  private async getArgentinaAttacks() { return this.prisma.ransomwareVictimsData.count({ where: { country: 'AR' } }); }
+  private async getTotalGroups() {
+    return this.prisma.ransomwareGroupsData.count();
+  }
+  private async getTotalVictims() {
+    return this.prisma.ransomwareVictimsData.count();
+  }
+  private async getArgentinaAttacks() {
+    return this.prisma.ransomwareVictimsData.count({
+      where: { country: 'AR' },
+    });
+  }
 
   private async getGroupsByVictims() {
     return this.prisma.ransomwareGroupsData.findMany({
@@ -404,14 +551,27 @@ export class RansomwareService {
     });
 
     const normalizedStats = countryStats
-      .map(stat => ({ country: stat.country ? stat.country.trim().toUpperCase() : null, count: stat._count.country }))
-      .filter((stat): stat is { country: string; count: number } => stat.country !== null && stat.country.length === 2);
+      .map((stat) => ({
+        country: stat.country ? stat.country.trim().toUpperCase() : null,
+        count: stat._count.country,
+      }))
+      .filter(
+        (stat): stat is { country: string; count: number } =>
+          stat.country !== null && stat.country.length === 2,
+      );
 
-    const groupedStats = normalizedStats.reduce((acc, stat) => {
-      const existing = acc.find(s => s.country === stat.country);
-      if (existing) { existing.count += stat.count; } else { acc.push({ country: stat.country, count: stat.count }); }
-      return acc;
-    }, [] as Array<{ country: string; count: number }>);
+    const groupedStats = normalizedStats.reduce(
+      (acc, stat) => {
+        const existing = acc.find((s) => s.country === stat.country);
+        if (existing) {
+          existing.count += stat.count;
+        } else {
+          acc.push({ country: stat.country, count: stat.count });
+        }
+        return acc;
+      },
+      [] as Array<{ country: string; count: number }>,
+    );
 
     groupedStats.sort((a, b) => b.count - a.count);
     return groupedStats;
@@ -428,7 +588,7 @@ export class RansomwareService {
     });
 
     const monthlyMap = new Map<string, number>();
-    victims.forEach(victim => {
+    victims.forEach((victim) => {
       const month = victim.discovered.toISOString().substring(0, 7);
       monthlyMap.set(month, (monthlyMap.get(month) || 0) + 1);
     });
@@ -445,7 +605,10 @@ export class RansomwareService {
       where: { AND: [{ activity: { not: null } }, { activity: { not: '' } }] },
       orderBy: { _count: { activity: 'desc' } },
     });
-    return activityStats.map(stat => ({ activity: stat.activity, count: stat._count.activity }));
+    return activityStats.map((stat) => ({
+      activity: stat.activity,
+      count: stat._count.activity,
+    }));
   }
 
   private async getRecentActivity() {
@@ -453,10 +616,23 @@ export class RansomwareService {
       orderBy: { discovered: 'desc' },
       take: 50,
       select: {
-        id: true, victim: true, group: true, country: true, activity: true,
-        discovered: true, website: true, description: true, postUrl: true,
-        screenshot: true, permalink: true, attackDate: true, duplicates: true,
-        extrainfos: true, infostealer: true, press: true, ransomwareLiveId: true,
+        id: true,
+        victim: true,
+        group: true,
+        country: true,
+        activity: true,
+        discovered: true,
+        website: true,
+        description: true,
+        postUrl: true,
+        screenshot: true,
+        permalink: true,
+        attackDate: true,
+        duplicates: true,
+        extrainfos: true,
+        infostealer: true,
+        press: true,
+        ransomwareLiveId: true,
       },
     });
   }
@@ -471,7 +647,9 @@ export class RansomwareService {
         });
       }
     } catch (error) {
-      this.logger.error(`Error saving ransomware victims: ${this.safeErrorMessage(error)}`);
+      this.logger.error(
+        `Error saving ransomware victims: ${this.safeErrorMessage(error)}`,
+      );
       throw error;
     }
   }
@@ -486,18 +664,30 @@ export class RansomwareService {
 
         const groupRecord = {
           group: normalizedGroupName,
-          altname: typeof group?.altname === 'string' && group.altname.trim().length > 0 ? group.altname.trim() : 'N/A',
-          victims: typeof group?.victims === 'number' && Number.isFinite(group.victims) ? group.victims : 0,
+          altname:
+            typeof group?.altname === 'string' &&
+            group.altname.trim().length > 0
+              ? group.altname.trim()
+              : 'N/A',
+          victims:
+            typeof group?.victims === 'number' && Number.isFinite(group.victims)
+              ? group.victims
+              : 0,
         };
 
         await this.prisma.ransomwareGroupsData.upsert({
           where: { group: groupRecord.group },
-          update: { altname: groupRecord.altname, victims: groupRecord.victims },
+          update: {
+            altname: groupRecord.altname,
+            victims: groupRecord.victims,
+          },
           create: groupRecord,
         });
       }
     } catch (error) {
-      this.logger.error(`Error saving ransomware groups: ${this.safeErrorMessage(error)}`);
+      this.logger.error(
+        `Error saving ransomware groups: ${this.safeErrorMessage(error)}`,
+      );
       throw error;
     }
   }
@@ -530,7 +720,9 @@ export class RansomwareService {
         create: groupData,
       });
     } catch (error: any) {
-      this.logger.error(`Error saving ransomware group ${groupData.group}: ${this.safeErrorMessage(error)}`);
+      this.logger.error(
+        `Error saving ransomware group ${groupData.group}: ${this.safeErrorMessage(error)}`,
+      );
       throw error;
     }
   }

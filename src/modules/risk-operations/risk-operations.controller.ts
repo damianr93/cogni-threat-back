@@ -1,4 +1,13 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Post,
+  Put,
+  Query,
+} from '@nestjs/common';
 import { CurrentUser } from '../../shared/auth/decorators/current-user.decorator';
 import { RequireWrite } from '../../shared/auth/decorators/require-write.decorator';
 import type { AuthenticatedUser } from '../../shared/auth/types/authenticated-user.type';
@@ -77,7 +86,10 @@ export class RiskOperationsController {
 
   @Post('treatments')
   @RequireWrite()
-  createTreatment(@CurrentUser() user: AuthenticatedUser, @Body() body: unknown) {
+  createTreatment(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() body: unknown,
+  ) {
     return this.service.createTreatment(user, body);
   }
 
@@ -95,7 +107,11 @@ export class RiskOperationsController {
 
   @Post('treatments/:id/actions')
   @RequireWrite()
-  createAction(@CurrentUser() user: AuthenticatedUser, @Param('id') treatmentId: string, @Body() body: unknown) {
+  createAction(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') treatmentId: string,
+    @Body() body: unknown,
+  ) {
     return this.service.createAction(user, treatmentId, body);
   }
 
@@ -159,7 +175,11 @@ export class RiskOperationsController {
 
   @Post('kpis/:id/measurements')
   @RequireWrite()
-  createMeasurement(@CurrentUser() user: AuthenticatedUser, @Param('id') kpiId: string, @Body() body: unknown) {
+  createMeasurement(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') kpiId: string,
+    @Body() body: unknown,
+  ) {
     return this.service.createMeasurement(user, kpiId, body);
   }
 }

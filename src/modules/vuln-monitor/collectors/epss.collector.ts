@@ -76,7 +76,10 @@ export class EpssCollector extends BaseCollector {
     } catch (err: any) {
       if (err?.response?.status === 404) {
         this.logger.warn(`EPSS file not yet available for ${today}`);
-        return this.buildResult({ source: this.source, errors: [`EPSS file not available for ${today}`] });
+        return this.buildResult({
+          source: this.source,
+          errors: [`EPSS file not available for ${today}`],
+        });
       }
       const msg = `EPSS sync failed: ${err.message}`;
       this.logger.error(msg);
@@ -84,6 +87,11 @@ export class EpssCollector extends BaseCollector {
       await this.syncState.markError('epss', msg);
     }
 
-    return this.buildResult({ source: this.source, newItems: 0, updatedItems, errors });
+    return this.buildResult({
+      source: this.source,
+      newItems: 0,
+      updatedItems,
+      errors,
+    });
   }
 }

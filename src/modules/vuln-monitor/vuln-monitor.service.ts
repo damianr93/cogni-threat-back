@@ -139,7 +139,8 @@ export class VulnMonitorService implements OnModuleInit {
       cvssScore: cve.cvssScore != null ? Number(cve.cvssScore) : null,
       severity: cve.severity,
       epssScore: cve.epssScore != null ? Number(cve.epssScore) : null,
-      epssPercentile: cve.epssPercentile != null ? Number(cve.epssPercentile) : null,
+      epssPercentile:
+        cve.epssPercentile != null ? Number(cve.epssPercentile) : null,
       isKev: cve.isKev,
       modifiedAt: cve.modifiedAt?.toISOString() ?? null,
     };
@@ -157,7 +158,8 @@ export class VulnMonitorService implements OnModuleInit {
       cvssVersion: cve.cvssVersion,
       severity: cve.severity,
       epssScore: cve.epssScore != null ? Number(cve.epssScore) : null,
-      epssPercentile: cve.epssPercentile != null ? Number(cve.epssPercentile) : null,
+      epssPercentile:
+        cve.epssPercentile != null ? Number(cve.epssPercentile) : null,
       isKev: cve.isKev,
       kevDate: cve.kevDate?.toISOString().slice(0, 10) ?? null,
       kevDueDate: cve.kevDueDate?.toISOString().slice(0, 10) ?? null,

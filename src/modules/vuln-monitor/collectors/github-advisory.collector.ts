@@ -59,7 +59,10 @@ export class GithubAdvisoryCollector extends BaseCollector {
     const token = await this.secrets.get('github_token');
     if (!token) {
       this.logger.warn('GitHub token not set — skipping GitHub Advisory sync');
-      return this.buildResult({ source: this.source, errors: ['GitHub token not configured'] });
+      return this.buildResult({
+        source: this.source,
+        errors: ['GitHub token not configured'],
+      });
     }
 
     const errors: string[] = [];
@@ -98,8 +101,14 @@ export class GithubAdvisoryCollector extends BaseCollector {
         if (hasNextPage) await this.sleep(300);
       }
 
-      await this.syncState.markSuccess('github', newItems + updatedItems, cursor ?? undefined);
-      this.logger.log(`GitHub sync done — new: ${newItems}, updated: ${updatedItems}`);
+      await this.syncState.markSuccess(
+        'github',
+        newItems + updatedItems,
+        cursor ?? undefined,
+      );
+      this.logger.log(
+        `GitHub sync done — new: ${newItems}, updated: ${updatedItems}`,
+      );
     } catch (err: any) {
       const msg = `GitHub sync failed: ${err.message}`;
       this.logger.error(msg);
@@ -107,14 +116,22 @@ export class GithubAdvisoryCollector extends BaseCollector {
       await this.syncState.markError('github', msg);
     }
 
-    return this.buildResult({ source: this.source, newItems, updatedItems, errors });
+    return this.buildResult({
+      source: this.source,
+      newItems,
+      updatedItems,
+      errors,
+    });
   }
 
   private async query(since: Date, cursor: string | null, token: string) {
     const res = await firstValueFrom(
       this.http.post(
         GITHUB_GRAPHQL,
-        { query: ADVISORY_QUERY, variables: { since: since.toISOString(), cursor } },
+        {
+          query: ADVISORY_QUERY,
+          variables: { since: since.toISOString(), cursor },
+        },
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -133,16 +150,19 @@ export class GithubAdvisoryCollector extends BaseCollector {
 
   private mapAdvisory(node: any) {
     const cveId =
-      (node.identifiers ?? []).find((i: any) => i.type === 'CVE')?.value ?? null;
+      (node.identifiers ?? []).find((i: any) => i.type === 'CVE')?.value ??
+      null;
 
     const severity = this.mapSeverity(node.severity);
 
-    const affectedPackages = (node.vulnerabilities?.nodes ?? []).map((v: any) => ({
-      name: v.package?.name,
-      ecosystem: v.package?.ecosystem,
-      vulnerableVersionRange: v.vulnerableVersionRange,
-      firstPatchedVersion: v.firstPatchedVersion?.identifier ?? null,
-    }));
+    const affectedPackages = (node.vulnerabilities?.nodes ?? []).map(
+      (v: any) => ({
+        name: v.package?.name,
+        ecosystem: v.package?.ecosystem,
+        vulnerableVersionRange: v.vulnerableVersionRange,
+        firstPatchedVersion: v.firstPatchedVersion?.identifier ?? null,
+      }),
+    );
 
     const refs = (node.references ?? []).map((r: any) => ({ url: r.url }));
 

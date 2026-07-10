@@ -1,4 +1,12 @@
-import { Controller, Delete, Get, Param, Post, Put, Body } from '@nestjs/common';
+import {
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Post,
+  Put,
+  Body,
+} from '@nestjs/common';
 import { VulnWatchProfilesService } from './vuln-watch-profiles.service';
 import { VulnAlertPreviewService } from './vuln-alert-preview.service';
 import { RequireWrite } from '../../../shared/auth/decorators/require-write.decorator';
@@ -35,13 +43,19 @@ export class VulnWatchProfilesController {
 
   @Delete('vuln-profiles/:id')
   @RequireWrite()
-  async remove(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
+  async remove(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+  ) {
     return this.profiles.remove(user.id, id);
   }
 
   @Post('vuln/preview')
   @RequireWrite()
-  async previewAlerts(@CurrentUser() user: AuthenticatedUser, @Body() body: unknown) {
+  async previewAlerts(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() body: unknown,
+  ) {
     return this.preview.preview(user.id, body);
   }
 }

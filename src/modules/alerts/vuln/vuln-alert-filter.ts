@@ -12,11 +12,17 @@ export interface VulnSubscriptionEvalResult {
   hits: ProfileMatchHit[];
 }
 
-export function passesSeverityGate(cve: VulnCveEvalInput, settings: VulnMonitorSettingsInput): boolean {
+export function passesSeverityGate(
+  cve: VulnCveEvalInput,
+  settings: VulnMonitorSettingsInput,
+): boolean {
   if (settings.isKevOnly && !cve.isKev) return false;
 
-  const severities = (settings.severities?.length ? settings.severities : [...DEFAULT_VULN_SEVERITIES])
-    .map((s) => s.toUpperCase());
+  const severities = (
+    settings.severities?.length
+      ? settings.severities
+      : [...DEFAULT_VULN_SEVERITIES]
+  ).map((s) => s.toUpperCase());
   const sev = (cve.severity ?? 'UNKNOWN').toUpperCase();
   if (severities.length > 0 && !severities.includes(sev)) return false;
 
@@ -36,10 +42,14 @@ export function passesSeverityGate(cve: VulnCveEvalInput, settings: VulnMonitorS
   return true;
 }
 
-export function passesKeywordGate(cve: VulnCveEvalInput, settings: VulnMonitorSettingsInput): boolean {
+export function passesKeywordGate(
+  cve: VulnCveEvalInput,
+  settings: VulnMonitorSettingsInput,
+): boolean {
   const keywords = settings.keywords ?? [];
   if (keywords.length === 0) return true;
-  const haystack = `${cve.id} ${cve.cveId ?? ''} ${cve.title ?? ''} ${cve.description ?? ''}`.toLowerCase();
+  const haystack =
+    `${cve.id} ${cve.cveId ?? ''} ${cve.title ?? ''} ${cve.description ?? ''}`.toLowerCase();
   return keywords.some((kw) => haystack.includes(kw.toLowerCase()));
 }
 
@@ -52,7 +62,9 @@ export function evaluateVulnSubscription(
     return { pass: false, hits: [] };
   }
 
-  const selectedProfiles = profiles.filter((p) => settings.profileIds.includes(p.id));
+  const selectedProfiles = profiles.filter((p) =>
+    settings.profileIds.includes(p.id),
+  );
   const match = matchCveToProfiles(cve, selectedProfiles);
 
   if (!match.matched) {

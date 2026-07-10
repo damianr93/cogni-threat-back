@@ -37,13 +37,19 @@ export class RansomwareApiClientService {
     try {
       const apiKey = await this.resolveApiKey();
       if (!apiKey) {
-        this.logger.warn('ransomware_api_key not configured — skipping victims fetch');
-        return { success: false, error: 'API key not configured', timestamp: new Date() };
+        this.logger.warn(
+          'ransomware_api_key not configured — skipping victims fetch',
+        );
+        return {
+          success: false,
+          error: 'API key not configured',
+          timestamp: new Date(),
+        };
       }
       const response = await firstValueFrom(
         this.httpService.get(`${API_URL}/victims/recent?order=discovered`, {
           headers: { 'Content-Type': 'application/json', 'X-API-KEY': apiKey },
-        })
+        }),
       );
       return { success: true, data: response.data, timestamp: new Date() };
     } catch (error) {
@@ -56,13 +62,23 @@ export class RansomwareApiClientService {
   async getVictimsByCountry(countries?: any[]) {
     try {
       if (!countries || countries.length === 0) {
-        return { success: false, error: 'No countries provided', timestamp: new Date() };
+        return {
+          success: false,
+          error: 'No countries provided',
+          timestamp: new Date(),
+        };
       }
 
       const apiKey = await this.resolveApiKey();
       if (!apiKey) {
-        this.logger.warn('ransomware_api_key not configured — skipping victims by country fetch');
-        return { success: false, error: 'API key not configured', timestamp: new Date() };
+        this.logger.warn(
+          'ransomware_api_key not configured — skipping victims by country fetch',
+        );
+        return {
+          success: false,
+          error: 'API key not configured',
+          timestamp: new Date(),
+        };
       }
       const BATCH_SIZE = 3;
       const DELAY_MS = 1500;
@@ -73,32 +89,47 @@ export class RansomwareApiClientService {
       for (let i = 0; i < countries.length; i += BATCH_SIZE) {
         const batch = countries.slice(i, i + BATCH_SIZE);
 
-        const batchResults = await Promise.all(batch.map(async country => {
-          try {
-            const response = await firstValueFrom(
-              this.httpService.get(`${API_URL}/victims/?country=${country.code2}`, {
-                headers: { 'Content-Type': 'application/json', 'X-API-KEY': apiKey },
-                timeout: 60000,
-              })
-            );
-            successCount++;
-            return response.data;
-          } catch (countryError) {
-            errorCount++;
-            this.logger.warn(`${country.code2}: ${this.safeRequestError(countryError)}`);
-            return [];
-          }
-        }));
+        const batchResults = await Promise.all(
+          batch.map(async (country) => {
+            try {
+              const response = await firstValueFrom(
+                this.httpService.get(
+                  `${API_URL}/victims/?country=${country.code2}`,
+                  {
+                    headers: {
+                      'Content-Type': 'application/json',
+                      'X-API-KEY': apiKey,
+                    },
+                    timeout: 60000,
+                  },
+                ),
+              );
+              successCount++;
+              return response.data;
+            } catch (countryError) {
+              errorCount++;
+              this.logger.warn(
+                `${country.code2}: ${this.safeRequestError(countryError)}`,
+              );
+              return [];
+            }
+          }),
+        );
 
         results.push(...batchResults);
         batchResults.length = 0;
 
         if (i + BATCH_SIZE < countries.length) {
-          await new Promise(resolve => setTimeout(resolve, DELAY_MS));
+          await new Promise((resolve) => setTimeout(resolve, DELAY_MS));
         }
       }
 
-      return { success: true, data: results, stats: { totalCountries: countries.length, successCount, errorCount }, timestamp: new Date() };
+      return {
+        success: true,
+        data: results,
+        stats: { totalCountries: countries.length, successCount, errorCount },
+        timestamp: new Date(),
+      };
     } catch (error) {
       const message = this.safeRequestError(error);
       this.logger.warn(`Error fetching victims by country: ${message}`);
@@ -110,13 +141,19 @@ export class RansomwareApiClientService {
     try {
       const apiKey = await this.resolveApiKey();
       if (!apiKey) {
-        this.logger.warn('ransomware_api_key not configured — skipping groups fetch');
-        return { success: false, error: 'API key not configured', timestamp: new Date() };
+        this.logger.warn(
+          'ransomware_api_key not configured — skipping groups fetch',
+        );
+        return {
+          success: false,
+          error: 'API key not configured',
+          timestamp: new Date(),
+        };
       }
       const response = await firstValueFrom(
         this.httpService.get(`${API_URL}/groups`, {
           headers: { 'Content-Type': 'application/json', 'X-API-KEY': apiKey },
-        })
+        }),
       );
       return { success: true, data: response.data, timestamp: new Date() };
     } catch (error) {
@@ -130,13 +167,21 @@ export class RansomwareApiClientService {
     try {
       const apiKey = await this.resolveApiKey();
       if (!apiKey) {
-        return { success: false, error: 'API key not configured', timestamp: new Date() };
+        return {
+          success: false,
+          error: 'API key not configured',
+          timestamp: new Date(),
+        };
       }
       const response = await firstValueFrom(
         this.httpService.get(`${API_URL}/groups/${name}`, {
-          headers: { 'Accept': 'application/json', 'Content-Type': 'application/json', 'X-API-KEY': apiKey },
+          headers: {
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+            'X-API-KEY': apiKey,
+          },
           timeout: 60000,
-        })
+        }),
       );
 
       let responseData = response.data;
@@ -144,7 +189,11 @@ export class RansomwareApiClientService {
         try {
           responseData = JSON.parse(responseData);
         } catch {
-          return { success: false, error: `API returned HTML instead of JSON`, timestamp: new Date() };
+          return {
+            success: false,
+            error: `API returned HTML instead of JSON`,
+            timestamp: new Date(),
+          };
         }
       }
 

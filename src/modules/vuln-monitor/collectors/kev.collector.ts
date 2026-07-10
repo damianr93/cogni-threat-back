@@ -5,7 +5,8 @@ import { BaseCollector, SyncResult } from './base.collector';
 import { VulnCveRepository } from '../repositories/vuln-cve.repository';
 import { SyncStateRepository } from '../repositories/sync-state.repository';
 
-const KEV_URL = 'https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json';
+const KEV_URL =
+  'https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json';
 
 @Injectable()
 export class KevCollector extends BaseCollector {
@@ -58,7 +59,9 @@ export class KevCollector extends BaseCollector {
       }
 
       await this.syncState.markSuccess('kev', newItems + updatedItems);
-      this.logger.log(`KEV sync done — new: ${newItems}, updated: ${updatedItems}`);
+      this.logger.log(
+        `KEV sync done — new: ${newItems}, updated: ${updatedItems}`,
+      );
     } catch (err: any) {
       const msg = `KEV fetch failed: ${err.message}`;
       this.logger.error(msg);
@@ -66,6 +69,11 @@ export class KevCollector extends BaseCollector {
       await this.syncState.markError('kev', msg);
     }
 
-    return this.buildResult({ source: this.source, newItems, updatedItems, errors });
+    return this.buildResult({
+      source: this.source,
+      newItems,
+      updatedItems,
+      errors,
+    });
   }
 }

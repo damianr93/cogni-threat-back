@@ -60,7 +60,8 @@ export class OllamaEmbeddingsProvider {
           { timeout: config.timeoutMs },
         );
         const { embeddings } = response.data;
-        if (!Array.isArray(embeddings)) throw new Error('Respuesta inesperada de /api/embed');
+        if (!Array.isArray(embeddings))
+          throw new Error('Respuesta inesperada de /api/embed');
         this.consecutiveBatchFailures = 0;
         this.batchCooldownUntil = 0;
         return embeddings;
@@ -70,7 +71,9 @@ export class OllamaEmbeddingsProvider {
           if (this.consecutiveBatchFailures >= 3) {
             this.batchCooldownUntil = Date.now() + EMBED_CIRCUIT_BREAKER_MS;
           }
-          this.logger.warn(`Batch embedding failed after ${EMBED_RETRY_ATTEMPTS} attempts, falling back`);
+          this.logger.warn(
+            `Batch embedding failed after ${EMBED_RETRY_ATTEMPTS} attempts, falling back`,
+          );
         }
       }
     }
@@ -81,7 +84,9 @@ export class OllamaEmbeddingsProvider {
     const result: number[][] = [];
     for (let i = 0; i < texts.length; i += FALLBACK_BATCH_CONCURRENCY) {
       const slice = texts.slice(i, i + FALLBACK_BATCH_CONCURRENCY);
-      const embs = await Promise.all(slice.map((t) => this.generateEmbedding(t)));
+      const embs = await Promise.all(
+        slice.map((t) => this.generateEmbedding(t)),
+      );
       result.push(...embs);
     }
     return result;

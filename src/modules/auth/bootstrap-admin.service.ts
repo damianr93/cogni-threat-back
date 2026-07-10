@@ -17,15 +17,21 @@ export class BootstrapAdminService implements OnApplicationBootstrap {
     const password = envs.ADMIN_PASSWORD;
 
     if (!email || !password) {
-      const adminCount = await this.prisma.user.count({ where: { role: 'ADMIN', isActive: true } });
+      const adminCount = await this.prisma.user.count({
+        where: { role: 'ADMIN', isActive: true },
+      });
       if (adminCount === 0) {
-        this.logger.warn('No active admin user found. Set ADMIN_EMAIL and ADMIN_PASSWORD, then restart the API.');
+        this.logger.warn(
+          'No active admin user found. Set ADMIN_EMAIL and ADMIN_PASSWORD, then restart the API.',
+        );
       }
       return;
     }
 
     if (password.length < 8) {
-      this.logger.warn('ADMIN_PASSWORD is configured but shorter than 8 characters; bootstrap admin was skipped.');
+      this.logger.warn(
+        'ADMIN_PASSWORD is configured but shorter than 8 characters; bootstrap admin was skipped.',
+      );
       return;
     }
 

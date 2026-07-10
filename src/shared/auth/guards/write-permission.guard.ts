@@ -1,4 +1,9 @@
-import { CanActivate, ExecutionContext, ForbiddenException, Injectable } from '@nestjs/common';
+import {
+  CanActivate,
+  ExecutionContext,
+  ForbiddenException,
+  Injectable,
+} from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Request } from 'express';
 import { IS_PUBLIC } from '../../guards/ip-whitelist.guard';
@@ -21,10 +26,10 @@ export class WritePermissionGuard implements CanActivate {
       return true;
     }
 
-    const requiresWrite = this.reflector.getAllAndOverride<boolean>(REQUIRE_WRITE, [
-      context.getHandler(),
-      context.getClass(),
-    ]);
+    const requiresWrite = this.reflector.getAllAndOverride<boolean>(
+      REQUIRE_WRITE,
+      [context.getHandler(), context.getClass()],
+    );
 
     if (!requiresWrite) {
       return true;

@@ -37,23 +37,46 @@ export class NvdCollector extends BaseCollector {
     const delay = apiKey ? 700 : 6000;
     const chunks = splitDateRange(startDate, endDate, NVD_MAX_WINDOW_DAYS);
 
-    this.logger.log(`NVD sync from ${startDate.toISOString()} to ${endDate.toISOString()} (${chunks.length} chunk(s))`);
+    this.logger.log(
+      `NVD sync from ${startDate.toISOString()} to ${endDate.toISOString()} (${chunks.length} chunk(s))`,
+    );
 
     try {
       for (const chunk of chunks) {
-        const rangeResult = await this.syncRange(chunk.start, chunk.end, apiKey, delay);
+        const rangeResult = await this.syncRange(
+          chunk.start,
+          chunk.end,
+          apiKey,
+          delay,
+        );
         newItems += rangeResult.newItems;
         updatedItems += rangeResult.updatedItems;
         errors.push(...rangeResult.errors);
         if (rangeResult.failed) {
-          await this.syncState.markError('nvd', rangeResult.errors[rangeResult.errors.length - 1] ?? 'NVD chunk failed');
-          return this.buildResult({ source: this.source, newItems, updatedItems, errors });
+          await this.syncState.markError(
+            'nvd',
+            rangeResult.errors[rangeResult.errors.length - 1] ??
+              'NVD chunk failed',
+          );
+          return this.buildResult({
+            source: this.source,
+            newItems,
+            updatedItems,
+            errors,
+          });
         }
         await this.syncState.markProgress('nvd', chunk.end);
       }
 
-      await this.syncState.markSuccess('nvd', newItems + updatedItems, undefined, endDate);
-      this.logger.log(`NVD sync done — new: ${newItems}, updated: ${updatedItems}`);
+      await this.syncState.markSuccess(
+        'nvd',
+        newItems + updatedItems,
+        undefined,
+        endDate,
+      );
+      this.logger.log(
+        `NVD sync done — new: ${newItems}, updated: ${updatedItems}`,
+      );
     } catch (err: any) {
       const msg = `NVD sync failed: ${err.message}`;
       this.logger.error(msg);
@@ -61,7 +84,12 @@ export class NvdCollector extends BaseCollector {
       await this.syncState.markError('nvd', msg);
     }
 
-    return this.buildResult({ source: this.source, newItems, updatedItems, errors });
+    return this.buildResult({
+      source: this.source,
+      newItems,
+      updatedItems,
+      errors,
+    });
   }
 
   private async syncRange(
@@ -69,7 +97,12 @@ export class NvdCollector extends BaseCollector {
     endDate: Date,
     apiKey: string | undefined,
     delay: number,
-  ): Promise<{ newItems: number; updatedItems: number; errors: string[]; failed: boolean }> {
+  ): Promise<{
+    newItems: number;
+    updatedItems: number;
+    errors: string[];
+    failed: boolean;
+  }> {
     const errors: string[] = [];
     let newItems = 0;
     let updatedItems = 0;
@@ -79,7 +112,12 @@ export class NvdCollector extends BaseCollector {
       let totalResults = 0;
 
       do {
-        const result = await this.fetchPage(startDate, endDate, startIndex, apiKey);
+        const result = await this.fetchPage(
+          startDate,
+          endDate,
+          startIndex,
+          apiKey,
+        );
         if (!result) break;
 
         if (startIndex === 0) {
@@ -138,7 +176,9 @@ export class NvdCollector extends BaseCollector {
       } catch (err: any) {
         const status = err?.response?.status;
         if ((status === 403 || status === 429) && attempt < MAX_RETRIES) {
-          this.logger.warn(`NVD rate limit (${status}), retry ${attempt}/${MAX_RETRIES} in 30s`);
+          this.logger.warn(
+            `NVD rate limit (${status}), retry ${attempt}/${MAX_RETRIES} in 30s`,
+          );
           await this.sleep(30000);
           continue;
         }

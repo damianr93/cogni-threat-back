@@ -9,4 +9,3 @@ import { DatabaseModule } from '../../shared/database/database.module';
   providers: [ActorsService],
 })
 export class ActorsModule {}
-

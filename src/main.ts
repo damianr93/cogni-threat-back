@@ -9,23 +9,31 @@ import { WritePermissionGuard } from './shared/auth/guards/write-permission.guar
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-  
+
   app.useGlobalPipes(new ZodValidationPipe());
 
   const ipWhitelistGuard = app.get(IpWhitelistGuard);
   const jwtAuthGuard = app.get(JwtAuthGuard);
   const rolesGuard = app.get(RolesGuard);
   const writePermissionGuard = app.get(WritePermissionGuard);
-  app.useGlobalGuards(ipWhitelistGuard, jwtAuthGuard, rolesGuard, writePermissionGuard);
+  app.useGlobalGuards(
+    ipWhitelistGuard,
+    jwtAuthGuard,
+    rolesGuard,
+    writePermissionGuard,
+  );
 
   app.enableCors({
-    origin: envs.CORS_ORIGIN === '*' ? true : envs.CORS_ORIGIN.split(',').map(origin => origin.trim()),
+    origin:
+      envs.CORS_ORIGIN === '*'
+        ? true
+        : envs.CORS_ORIGIN.split(',').map((origin) => origin.trim()),
     credentials: true,
   });
 
   const port = envs.API_PORT;
   await app.listen(port);
-  
+
   console.log(`🚀 Cogni-Threat API Gateway running on port ${port}`);
   console.log(`📊 Environment: ${envs.NODE_ENV}`);
   console.log(`🌐 CORS enabled for: ${envs.CORS_ORIGIN}`);
@@ -49,7 +57,10 @@ async function bootstrap() {
     // gramjs (_updateLoop) emits TIMEOUT as unhandled rejections during normal
     // MTProto long-poll cycling — these are handled internally by the library
     // and do not indicate real failures, so we suppress them here.
-    if (reason?.message === 'TIMEOUT' && reason?.stack?.includes('telegram/client/updates.js')) {
+    if (
+      reason?.message === 'TIMEOUT' &&
+      reason?.stack?.includes('telegram/client/updates.js')
+    ) {
       return;
     }
     console.error('Unhandled Rejection reason:', reason);

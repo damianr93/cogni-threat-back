@@ -5,4 +5,6 @@ export const DeleteConversationSchema = z.object({
   conversationId: z.number().int().positive(),
 });
 
-export class DeleteConversationDto extends createZodDto(DeleteConversationSchema) {}
+export class DeleteConversationDto extends createZodDto(
+  DeleteConversationSchema,
+) {}

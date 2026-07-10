@@ -2,7 +2,10 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../shared/database/prisma.service';
 import { VulnPreviewSchema } from './dto/vuln-profile.dto';
 import { evaluateVulnSubscription } from './vuln-alert-filter';
-import { defaultVulnMonitorSettings, type VulnMonitorSettingsInput } from './vuln-alert.types';
+import {
+  defaultVulnMonitorSettings,
+  type VulnMonitorSettingsInput,
+} from './vuln-alert.types';
 import { VulnWatchProfilesService } from './vuln-watch-profiles.service';
 
 @Injectable()
@@ -14,7 +17,10 @@ export class VulnAlertPreviewService {
 
   async preview(userId: string, body: unknown) {
     const dto = VulnPreviewSchema.parse(body);
-    const profiles = await this.profiles.validateProfileIds(userId, dto.profileIds);
+    const profiles = await this.profiles.validateProfileIds(
+      userId,
+      dto.profileIds,
+    );
     const profileInputs = profiles.map((p) => ({
       id: p.id,
       name: p.name,
@@ -83,8 +89,12 @@ export class VulnAlertPreviewService {
         samples.push({
           cveId: cve.cveId,
           severity: cve.severity,
-          matchedProfiles: [...new Set(evalResult.hits.map((h) => h.profileName))],
-          matchedOn: evalResult.hits.map((h) => `${h.itemLabel} → ${h.matchedOn}`),
+          matchedProfiles: [
+            ...new Set(evalResult.hits.map((h) => h.profileName)),
+          ],
+          matchedOn: evalResult.hits.map(
+            (h) => `${h.itemLabel} → ${h.matchedOn}`,
+          ),
         });
       }
     }

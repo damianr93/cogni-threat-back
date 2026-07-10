@@ -5,7 +5,11 @@ export interface DateRangeChunk {
   end: Date;
 }
 
-export function splitDateRange(start: Date, end: Date, maxDays = NVD_MAX_WINDOW_DAYS): DateRangeChunk[] {
+export function splitDateRange(
+  start: Date,
+  end: Date,
+  maxDays = NVD_MAX_WINDOW_DAYS,
+): DateRangeChunk[] {
   if (start.getTime() >= end.getTime()) {
     throw new Error('start must be before end');
   }
@@ -15,7 +19,9 @@ export function splitDateRange(start: Date, end: Date, maxDays = NVD_MAX_WINDOW_
   let cursor = new Date(start);
 
   while (cursor.getTime() < end.getTime()) {
-    const chunkEnd = new Date(Math.min(cursor.getTime() + maxMs, end.getTime()));
+    const chunkEnd = new Date(
+      Math.min(cursor.getTime() + maxMs, end.getTime()),
+    );
     chunks.push({ start: new Date(cursor), end: chunkEnd });
     if (chunkEnd.getTime() >= end.getTime()) break;
     cursor = new Date(chunkEnd.getTime() + 1);

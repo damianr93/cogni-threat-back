@@ -1,4 +1,8 @@
-import type { ProfileInput, ProfileMatchHit, VulnMonitorSettingsInput } from './vuln-alert.types';
+import type {
+  ProfileInput,
+  ProfileMatchHit,
+  VulnMonitorSettingsInput,
+} from './vuln-alert.types';
 import { defaultVulnMonitorSettings } from './vuln-alert.types';
 import { evaluateVulnSubscription } from './vuln-alert-filter';
 
@@ -25,13 +29,19 @@ export interface VulnAlertCandidate {
   hits: ProfileMatchHit[];
 }
 
-export function parseVulnMonitorSettings(raw: unknown): VulnMonitorSettingsInput {
+export function parseVulnMonitorSettings(
+  raw: unknown,
+): VulnMonitorSettingsInput {
   const base = defaultVulnMonitorSettings();
   if (!raw || typeof raw !== 'object') return base;
   const s = raw as Record<string, unknown>;
   return {
-    profileIds: Array.isArray(s.profileIds) ? (s.profileIds as string[]) : base.profileIds,
-    severities: Array.isArray(s.severities) ? (s.severities as string[]) : base.severities,
+    profileIds: Array.isArray(s.profileIds)
+      ? (s.profileIds as string[])
+      : base.profileIds,
+    severities: Array.isArray(s.severities)
+      ? (s.severities as string[])
+      : base.severities,
     cvssMin: s.cvssMin != null ? Number(s.cvssMin) : null,
     epssMin: s.epssMin != null ? Number(s.epssMin) : null,
     isKevOnly: Boolean(s.isKevOnly),

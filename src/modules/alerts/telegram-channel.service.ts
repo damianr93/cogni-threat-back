@@ -1,4 +1,9 @@
-import { Injectable, OnModuleInit, OnModuleDestroy, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  OnModuleInit,
+  OnModuleDestroy,
+  Logger,
+} from '@nestjs/common';
 import { PrismaService } from '../../shared/database/prisma.service';
 import { TelegramClient } from 'telegram';
 import { StringSession } from 'telegram/sessions';
@@ -24,7 +29,7 @@ export class TelegramChannelService implements OnModuleInit, OnModuleDestroy {
   constructor(
     private readonly prisma: PrismaService,
     private readonly secrets: SecretsService,
-  ) { }
+  ) {}
 
   async onModuleInit() {
     // Arrancar en background para no bloquear app.listen()
@@ -34,11 +39,15 @@ export class TelegramChannelService implements OnModuleInit, OnModuleDestroy {
   private async initialize() {
     // Solo iniciar si está configurado
     const missingConfig: string[] = [];
-    if (!(await this.secrets.get('telegram_api_id'))) missingConfig.push('TELEGRAM_API_ID');
-    if (!(await this.secrets.get('telegram_api_hash'))) missingConfig.push('TELEGRAM_API_HASH');
+    if (!(await this.secrets.get('telegram_api_id')))
+      missingConfig.push('TELEGRAM_API_ID');
+    if (!(await this.secrets.get('telegram_api_hash')))
+      missingConfig.push('TELEGRAM_API_HASH');
 
     if (missingConfig.length > 0) {
-      this.logger.warn(`⚠️  Telegram channel monitoring not configured. Missing: ${missingConfig.join(', ')}. Skipping initialization.`);
+      this.logger.warn(
+        `⚠️  Telegram channel monitoring not configured. Missing: ${missingConfig.join(', ')}. Skipping initialization.`,
+      );
       return;
     }
 
@@ -46,7 +55,9 @@ export class TelegramChannelService implements OnModuleInit, OnModuleDestroy {
     await this.loadChannelsFromDatabase();
 
     if (this.channelUsernames.length === 0) {
-      this.logger.warn('⚠️  No Telegram channels configured in database. Skipping initialization.');
+      this.logger.warn(
+        '⚠️  No Telegram channels configured in database. Skipping initialization.',
+      );
       return;
     }
 
@@ -68,22 +79,26 @@ export class TelegramChannelService implements OnModuleInit, OnModuleDestroy {
         where: { isActive: true },
       });
 
-      this.channelUsernames = channels.map(ch => ch.username);
+      this.channelUsernames = channels.map((ch) => ch.username);
 
       if (this.channelUsernames.length > 0) {
-        this.logger.log(`📡 Loaded ${this.channelUsernames.length} channels from database: ${this.channelUsernames.join(', ')}`);
+        this.logger.log(
+          `📡 Loaded ${this.channelUsernames.length} channels from database: ${this.channelUsernames.join(', ')}`,
+        );
       }
 
       // También cargar de .env como fallback/complemento
       const envChannels = (envs.TELEGRAM_CHANNEL_USERNAME || '')
         .split(',')
-        .map(c => c.trim())
-        .filter(c => c.length > 0);
+        .map((c) => c.trim())
+        .filter((c) => c.length > 0);
 
       if (envChannels.length > 0) {
-        this.logger.log(`📡 Also loading ${envChannels.length} channels from .env as fallback`);
+        this.logger.log(
+          `📡 Also loading ${envChannels.length} channels from .env as fallback`,
+        );
         // Agregar solo los que no estén ya en la lista
-        envChannels.forEach(ch => {
+        envChannels.forEach((ch) => {
           if (!this.channelUsernames.includes(ch)) {
             this.channelUsernames.push(ch);
           }
@@ -94,8 +109,8 @@ export class TelegramChannelService implements OnModuleInit, OnModuleDestroy {
       // Fallback a .env si falla la carga de BD
       const envChannels = (envs.TELEGRAM_CHANNEL_USERNAME || '')
         .split(',')
-        .map(c => c.trim())
-        .filter(c => c.length > 0);
+        .map((c) => c.trim())
+        .filter((c) => c.length > 0);
       this.channelUsernames = envChannels;
     }
   }
@@ -105,7 +120,10 @@ export class TelegramChannelService implements OnModuleInit, OnModuleDestroy {
     const oldChannels = [...this.channelUsernames];
     await this.loadChannelsFromDatabase();
 
-    if (JSON.stringify(oldChannels.sort()) !== JSON.stringify(this.channelUsernames.sort())) {
+    if (
+      JSON.stringify(oldChannels.sort()) !==
+      JSON.stringify(this.channelUsernames.sort())
+    ) {
       this.logger.log('✅ Channels updated. Restarting listener...');
 
       await this.ensureDisconnected();
@@ -140,7 +158,9 @@ export class TelegramChannelService implements OnModuleInit, OnModuleDestroy {
    * stored session (e.g. after an admin completes the panel login flow).
    */
   async restartWithFreshSession() {
-    this.logger.log('🔄 Applying new Telegram session, restarting monitoring...');
+    this.logger.log(
+      '🔄 Applying new Telegram session, restarting monitoring...',
+    );
     this.stopConnectionWatchdog();
     await this.ensureDisconnected();
     await this.initialize();
@@ -153,7 +173,9 @@ export class TelegramChannelService implements OnModuleInit, OnModuleDestroy {
         this.logger.error('Watchdog error', err),
       );
     }, WATCHDOG_INTERVAL_MS);
-    this.logger.log(`🔄 Connection watchdog started (every ${WATCHDOG_INTERVAL_MS / 1000}s)`);
+    this.logger.log(
+      `🔄 Connection watchdog started (every ${WATCHDOG_INTERVAL_MS / 1000}s)`,
+    );
   }
 
   private stopConnectionWatchdog() {
@@ -174,7 +196,10 @@ export class TelegramChannelService implements OnModuleInit, OnModuleDestroy {
       // disconnect() alone leaves _destroyed=false, causing a zombie update loop.
       await this.client.destroy();
     } catch (e) {
-      this.logger.warn('Error during destroy (ignored):', (e as Error)?.message);
+      this.logger.warn(
+        'Error during destroy (ignored):',
+        (e as Error)?.message,
+      );
     }
     this.client = null as unknown as TelegramClient;
     this.isConnected = false;
@@ -189,7 +214,9 @@ export class TelegramChannelService implements OnModuleInit, OnModuleDestroy {
 
     // Reconexión forzada periódica: MTProto a veces deja de enviar NewMessage aunque la conexión siga "viva"
     if (timeSinceLastForceReconnect >= FORCE_RECONNECT_INTERVAL_MS) {
-      this.logger.log(`🔄 Watchdog: forcing reconnect to refresh updates stream (every ${FORCE_RECONNECT_INTERVAL_MS / 60000} min)`);
+      this.logger.log(
+        `🔄 Watchdog: forcing reconnect to refresh updates stream (every ${FORCE_RECONNECT_INTERVAL_MS / 60000} min)`,
+      );
       this.lastForceReconnectAt = now;
       await this.reconnect();
       return;
@@ -201,18 +228,26 @@ export class TelegramChannelService implements OnModuleInit, OnModuleDestroy {
       return;
     }
     if (!this.client.connected) {
-      this.logger.warn('Watchdog: client.connected is false, attempting reconnect...');
+      this.logger.warn(
+        'Watchdog: client.connected is false, attempting reconnect...',
+      );
       await this.reconnect();
       return;
     }
     // Heartbeat: force a round-trip to detect stale/broken connections
     try {
       const timeout = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('Heartbeat timeout')), HEARTBEAT_TIMEOUT_MS),
+        setTimeout(
+          () => reject(new Error('Heartbeat timeout')),
+          HEARTBEAT_TIMEOUT_MS,
+        ),
       );
       await Promise.race([this.client.getMe(), timeout]);
     } catch (e) {
-      this.logger.warn('Watchdog: heartbeat failed, attempting reconnect...', (e as Error)?.message);
+      this.logger.warn(
+        'Watchdog: heartbeat failed, attempting reconnect...',
+        (e as Error)?.message,
+      );
       await this.reconnect();
     }
   }
@@ -229,7 +264,10 @@ export class TelegramChannelService implements OnModuleInit, OnModuleDestroy {
         this.logger.log('✅ Telegram reconnected and listening again');
       }
     } catch (error) {
-      this.logger.error('Reconnection failed (will retry on next watchdog run):', error);
+      this.logger.error(
+        'Reconnection failed (will retry on next watchdog run):',
+        error,
+      );
     } finally {
       this.isReconnecting = false;
     }
@@ -237,9 +275,12 @@ export class TelegramChannelService implements OnModuleInit, OnModuleDestroy {
 
   private async connect() {
     try {
-      const apiId = parseInt((await this.secrets.get('telegram_api_id')) || '0');
+      const apiId = parseInt(
+        (await this.secrets.get('telegram_api_id')) || '0',
+      );
       const apiHash = (await this.secrets.get('telegram_api_hash')) || '';
-      const sessionString = (await this.secrets.get('telegram_session_string')) || '';
+      const sessionString =
+        (await this.secrets.get('telegram_session_string')) || '';
       const stringSession = new StringSession(sessionString);
 
       this.client = new TelegramClient(stringSession, apiId, apiHash, {
@@ -248,8 +289,10 @@ export class TelegramChannelService implements OnModuleInit, OnModuleDestroy {
 
       await this.client.connect();
 
-      if (!await this.client.isUserAuthorized()) {
-        this.logger.warn('⚠️  Telegram client not authorized. Configure it from the admin panel (Telegram login).');
+      if (!(await this.client.isUserAuthorized())) {
+        this.logger.warn(
+          '⚠️  Telegram client not authorized. Configure it from the admin panel (Telegram login).',
+        );
         return;
       }
 
@@ -258,12 +301,25 @@ export class TelegramChannelService implements OnModuleInit, OnModuleDestroy {
 
       // Persist the refreshed session so it survives restarts without manual steps.
       const currentSession = this.client.session.save() as unknown as string;
-      if (currentSession && currentSession !== sessionString && this.secrets.storeEnabled) {
+      if (
+        currentSession &&
+        currentSession !== sessionString &&
+        this.secrets.storeEnabled
+      ) {
         try {
-          await this.secrets.set('telegram_session_string', currentSession, 'telegram-auto-refresh');
-          this.logger.log('📝 Telegram session string refreshed and persisted.');
+          await this.secrets.set(
+            'telegram_session_string',
+            currentSession,
+            'telegram-auto-refresh',
+          );
+          this.logger.log(
+            '📝 Telegram session string refreshed and persisted.',
+          );
         } catch (e) {
-          this.logger.warn('Could not persist refreshed Telegram session:', (e as Error)?.message);
+          this.logger.warn(
+            'Could not persist refreshed Telegram session:',
+            (e as Error)?.message,
+          );
         }
       }
     } catch (error) {
@@ -293,7 +349,10 @@ export class TelegramChannelService implements OnModuleInit, OnModuleDestroy {
             this.logger.log(`✅ Found channel: ${username} (ID: ${channelId})`);
           }
         } catch (error) {
-          this.logger.error(`❌ Failed to find channel: ${username}`, error.message);
+          this.logger.error(
+            `❌ Failed to find channel: ${username}`,
+            error.message,
+          );
         }
       }
 
@@ -303,34 +362,36 @@ export class TelegramChannelService implements OnModuleInit, OnModuleDestroy {
       }
 
       // Escuchar SOLO mensajes de los canales configurados
-      this.client.addEventHandler(
-        async (event: any) => {
-          try {
-            const message = event.message;
+      this.client.addEventHandler(async (event: any) => {
+        try {
+          const message = event.message;
 
-            // Filtro: verificar que sea de uno de nuestros canales
-            if (!message || !message.message) return;
+          // Filtro: verificar que sea de uno de nuestros canales
+          if (!message || !message.message) return;
 
-            const chatId = message.peerId?.channelId?.toString();
-            const channelUsername = this.channelIds.get(chatId);
+          const chatId = message.peerId?.channelId?.toString();
+          const channelUsername = this.channelIds.get(chatId);
 
-            if (!channelUsername) {
-              // Mensaje de otro chat o canal eliminado, ignorar silenciosamente
-              return;
-            }
-
-            await this.processNewMessage(message, channelUsername);
-          } catch (error) {
-            // Solo loggear errores reales, no de filtrado
-            if (error?.message && !error.message.includes('Cannot find any entity')) {
-              this.logger.error('Error processing message:', error);
-            }
+          if (!channelUsername) {
+            // Mensaje de otro chat o canal eliminado, ignorar silenciosamente
+            return;
           }
-        },
-        new NewMessage({})
-      );
 
-      this.logger.log(`👂 Listening to ${this.channelIds.size} channel(s): ${Array.from(this.channelIds.values()).join(', ')}`);
+          await this.processNewMessage(message, channelUsername);
+        } catch (error) {
+          // Solo loggear errores reales, no de filtrado
+          if (
+            error?.message &&
+            !error.message.includes('Cannot find any entity')
+          ) {
+            this.logger.error('Error processing message:', error);
+          }
+        }
+      }, new NewMessage({}));
+
+      this.logger.log(
+        `👂 Listening to ${this.channelIds.size} channel(s): ${Array.from(this.channelIds.values()).join(', ')}`,
+      );
 
       // Obtener mensajes recientes de todos los canales
       await this.fetchRecentMessages();
@@ -373,7 +434,9 @@ export class TelegramChannelService implements OnModuleInit, OnModuleDestroy {
         },
       });
 
-      this.logger.log(`💾 Saved message from ${channelUsername}: ${messageText.substring(0, 60)}...`);
+      this.logger.log(
+        `💾 Saved message from ${channelUsername}: ${messageText.substring(0, 60)}...`,
+      );
     } catch (error) {
       this.logger.error('Error saving message:', error);
     }
@@ -381,7 +444,9 @@ export class TelegramChannelService implements OnModuleInit, OnModuleDestroy {
 
   private async fetchRecentMessages() {
     try {
-      this.logger.log(`📥 Fetching recent messages from ${this.channelUsernames.length} channel(s)...`);
+      this.logger.log(
+        `📥 Fetching recent messages from ${this.channelUsernames.length} channel(s)...`,
+      );
 
       let totalSaved = 0;
 
@@ -400,14 +465,21 @@ export class TelegramChannelService implements OnModuleInit, OnModuleDestroy {
             }
           }
 
-          this.logger.log(`✅ Processed ${savedCount} messages from ${username}`);
+          this.logger.log(
+            `✅ Processed ${savedCount} messages from ${username}`,
+          );
           totalSaved += savedCount;
         } catch (error) {
-          this.logger.error(`Error fetching messages from ${username}:`, error.message);
+          this.logger.error(
+            `Error fetching messages from ${username}:`,
+            error.message,
+          );
         }
       }
 
-      this.logger.log(`✅ Total processed: ${totalSaved} messages from all channels`);
+      this.logger.log(
+        `✅ Total processed: ${totalSaved} messages from all channels`,
+      );
     } catch (error) {
       this.logger.error('Error fetching recent messages:', error);
     }

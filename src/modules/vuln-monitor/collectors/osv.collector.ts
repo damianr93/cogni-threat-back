@@ -6,7 +6,8 @@ import { BaseCollector, SyncResult } from './base.collector';
 import { VulnCveRepository } from '../repositories/vuln-cve.repository';
 import { SyncStateRepository } from '../repositories/sync-state.repository';
 
-const MODIFIED_CSV = 'https://osv-vulnerabilities.storage.googleapis.com/modified_id.csv';
+const MODIFIED_CSV =
+  'https://osv-vulnerabilities.storage.googleapis.com/modified_id.csv';
 const OSV_DETAIL = 'https://api.osv.dev/v1/vulns';
 const CHECKPOINT_EVERY = 200;
 
@@ -32,7 +33,8 @@ export class OsvCollector extends BaseCollector {
   async sync(opts?: { maxItems?: number }): Promise<SyncResult>;
   async sync(sinceOrOpts?: Date | { maxItems?: number }): Promise<SyncResult> {
     const since = sinceOrOpts instanceof Date ? sinceOrOpts : undefined;
-    const maxItems = sinceOrOpts instanceof Date ? undefined : sinceOrOpts?.maxItems;
+    const maxItems =
+      sinceOrOpts instanceof Date ? undefined : sinceOrOpts?.maxItems;
 
     const errors: string[] = [];
     let newItems = 0;
@@ -43,7 +45,9 @@ export class OsvCollector extends BaseCollector {
 
     try {
       const modified = await this.fetchModifiedIds(lastSync);
-      const entries = maxItems ? modified.entries.slice(0, maxItems) : modified.entries;
+      const entries = maxItems
+        ? modified.entries.slice(0, maxItems)
+        : modified.entries;
       this.logger.log(
         `OSV: ${entries.length} entries to process${maxItems ? ` (capped at ${maxItems})` : ''} of ${modified.entries.length} modified`,
       );
@@ -65,9 +69,17 @@ export class OsvCollector extends BaseCollector {
           lastProcessedTs = entry.ts;
           processedSinceCheckpoint++;
 
-          if (useCheckpoints && processedSinceCheckpoint >= CHECKPOINT_EVERY && lastProcessedTs) {
+          if (
+            useCheckpoints &&
+            processedSinceCheckpoint >= CHECKPOINT_EVERY &&
+            lastProcessedTs
+          ) {
             lastCheckpointWatermark = new Date(lastProcessedTs);
-            await this.syncState.markProgress('osv', lastCheckpointWatermark, modified.cursor ?? undefined);
+            await this.syncState.markProgress(
+              'osv',
+              lastCheckpointWatermark,
+              modified.cursor ?? undefined,
+            );
             processedSinceCheckpoint = 0;
           }
 
@@ -79,7 +91,7 @@ export class OsvCollector extends BaseCollector {
 
       const finalWatermark = lastProcessedTs
         ? new Date(lastProcessedTs)
-        : lastSync ?? new Date();
+        : (lastSync ?? new Date());
 
       if (errors.length === 0) {
         await this.syncState.markSuccess(
@@ -89,9 +101,14 @@ export class OsvCollector extends BaseCollector {
           finalWatermark,
         );
       } else {
-        await this.syncState.markError('osv', errors[errors.length - 1] ?? 'OSV sync had errors');
+        await this.syncState.markError(
+          'osv',
+          errors[errors.length - 1] ?? 'OSV sync had errors',
+        );
       }
-      this.logger.log(`OSV sync done — new: ${newItems}, updated: ${updatedItems}`);
+      this.logger.log(
+        `OSV sync done — new: ${newItems}, updated: ${updatedItems}`,
+      );
     } catch (err: any) {
       const msg = `OSV sync failed: ${err.message}`;
       this.logger.error(msg);
@@ -99,10 +116,17 @@ export class OsvCollector extends BaseCollector {
       await this.syncState.markError('osv', msg);
     }
 
-    return this.buildResult({ source: this.source, newItems, updatedItems, errors });
+    return this.buildResult({
+      source: this.source,
+      newItems,
+      updatedItems,
+      errors,
+    });
   }
 
-  private async fetchModifiedIds(since: Date | null): Promise<{ entries: OsvModifiedEntry[]; cursor: string | null }> {
+  private async fetchModifiedIds(
+    since: Date | null,
+  ): Promise<{ entries: OsvModifiedEntry[]; cursor: string | null }> {
     const response = await firstValueFrom(
       this.http.get(MODIFIED_CSV, { responseType: 'stream', timeout: 60000 }),
     );
@@ -112,7 +136,10 @@ export class OsvCollector extends BaseCollector {
       let cursor: string | null = null;
       let isFirst = true;
 
-      const rl = readline.createInterface({ input: response.data, crlfDelay: Infinity });
+      const rl = readline.createInterface({
+        input: response.data,
+        crlfDelay: Infinity,
+      });
 
       rl.on('line', (line) => {
         const trimmed = line.trim();

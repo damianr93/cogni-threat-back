@@ -1,4 +1,10 @@
-import { Injectable, CanActivate, ExecutionContext, ForbiddenException, SetMetadata } from '@nestjs/common';
+import {
+  Injectable,
+  CanActivate,
+  ExecutionContext,
+  ForbiddenException,
+  SetMetadata,
+} from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Request } from 'express';
 import { envs } from 'libs/config/src/envs';
@@ -16,17 +22,21 @@ export class IpWhitelistGuard implements CanActivate {
     const allowedIpsEnv = envs.ALLOWED_IPS || '';
     this.allowedIps = allowedIpsEnv
       .split(',')
-      .map(ip => ip.trim())
-      .filter(ip => ip.length > 0);
+      .map((ip) => ip.trim())
+      .filter((ip) => ip.length > 0);
 
     // Si no hay IPs configuradas, permitir todas
     if (this.allowedIps.length === 0) {
-      console.warn('⚠️  IP Whitelist: No IPs configuradas, permitiendo todas las IPs');
+      console.warn(
+        '⚠️  IP Whitelist: No IPs configuradas, permitiendo todas las IPs',
+      );
       this.allowedIps = ['*'];
     }
 
     if (this.allowedIps.length > 0 && !this.allowedIps.includes('*')) {
-      console.log(`🔒 IP Whitelist activado: ${this.allowedIps.length} IP(s) permitida(s): [${this.allowedIps.join(', ')}]`);
+      console.log(
+        `🔒 IP Whitelist activado: ${this.allowedIps.length} IP(s) permitida(s): [${this.allowedIps.join(', ')}]`,
+      );
     }
   }
 
@@ -51,15 +61,18 @@ export class IpWhitelistGuard implements CanActivate {
     const normalizedClientIp = this.normalizeIp(clientIp);
 
     // Permitir localhost (IPv4 e IPv6) para healthchecks y solicitudes internas
-    if (normalizedClientIp === '127.0.0.1' || normalizedClientIp === '::1' || clientIp === '::1') {
+    if (
+      normalizedClientIp === '127.0.0.1' ||
+      normalizedClientIp === '::1' ||
+      clientIp === '::1'
+    ) {
       return true;
     }
 
-    
-    const isAllowed = this.allowedIps.some(allowedIp => {
+    const isAllowed = this.allowedIps.some((allowedIp) => {
       // Normalizar ambas IPs para comparación
       const normalizedAllowedIp = this.normalizeIp(allowedIp);
-      
+
       // Soporte para rangos CIDR (ej: 192.168.1.0/24)
       if (normalizedAllowedIp.includes('/')) {
         const inCidr = this.isIpInCidr(normalizedClientIp, normalizedAllowedIp);
@@ -71,9 +84,13 @@ export class IpWhitelistGuard implements CanActivate {
     });
 
     if (!isAllowed) {
-      console.warn(`🚫 Acceso denegado desde IP: ${clientIp} (normalizada: ${normalizedClientIp})`);
+      console.warn(
+        `🚫 Acceso denegado desde IP: ${clientIp} (normalizada: ${normalizedClientIp})`,
+      );
       console.warn(`🚫 IPs permitidas: [${this.allowedIps.join(', ')}]`);
-      throw new ForbiddenException(`Acceso denegado. IP no autorizada: ${clientIp}`);
+      throw new ForbiddenException(
+        `Acceso denegado. IP no autorizada: ${clientIp}`,
+      );
     }
 
     return true;
@@ -84,9 +101,7 @@ export class IpWhitelistGuard implements CanActivate {
     const forwardedFor = request.headers['x-forwarded-for'];
     if (forwardedFor) {
       // X-Forwarded-For puede contener múltiples IPs, tomar la primera
-      const ips = Array.isArray(forwardedFor) 
-        ? forwardedFor[0] 
-        : forwardedFor;
+      const ips = Array.isArray(forwardedFor) ? forwardedFor[0] : forwardedFor;
       const ip = ips.split(',')[0].trim();
       return this.normalizeIp(ip);
     }
@@ -118,11 +133,11 @@ export class IpWhitelistGuard implements CanActivate {
     try {
       const [network, prefixLength] = cidr.split('/');
       const mask = parseInt(prefixLength, 10);
-      
+
       // Normalizar ambas IPs antes de convertir a número
       const normalizedIp = this.normalizeIp(ip);
       const normalizedNetwork = this.normalizeIp(network);
-      
+
       const ipNum = this.ipToNumber(normalizedIp);
       const networkNum = this.ipToNumber(normalizedNetwork);
       const maskNum = (0xffffffff << (32 - mask)) >>> 0;

@@ -1,11 +1,21 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, Res } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Body,
+  Param,
+  Query,
+  Res,
+} from '@nestjs/common';
 import { ActorsService } from './actors.service';
 import type { Response } from 'express';
 import { RequireWrite } from '../../shared/auth/decorators/require-write.decorator';
 
 @Controller('actors')
 export class ActorsController {
-  constructor(private readonly actorsService: ActorsService) { }
+  constructor(private readonly actorsService: ActorsService) {}
 
   @Post()
   @RequireWrite()
@@ -59,14 +69,14 @@ export class ActorsController {
   }
 
   @Get(':id/export/pdf')
-async exportPdf(@Param('id') id: string, @Res() res: Response) {
-  return this.actorsService.exportPdf(id, res);
-}
+  async exportPdf(@Param('id') id: string, @Res() res: Response) {
+    return this.actorsService.exportPdf(id, res);
+  }
 
-@Get(':id/export/docx')
-async exportDocx(@Param('id') id: string, @Res() res: Response) {
-  return this.actorsService.exportDocx(id, res);
-}
+  @Get(':id/export/docx')
+  async exportDocx(@Param('id') id: string, @Res() res: Response) {
+    return this.actorsService.exportDocx(id, res);
+  }
 
   @Put(':id')
   @RequireWrite()
@@ -92,4 +102,3 @@ async exportDocx(@Param('id') id: string, @Res() res: Response) {
     return this.actorsService.removeHito(id);
   }
 }
-
