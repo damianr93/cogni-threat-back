@@ -79,6 +79,7 @@ const AssetSchema = z.object({
   availability: rating,
   ownerName: optionalText,
   businessContext: optionalText,
+  description: optionalText,
   tags: z.array(z.string().trim().min(1)).default([]),
   isActive: z.boolean().optional(),
 });

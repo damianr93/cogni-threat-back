@@ -107,6 +107,7 @@ model InformationAsset {
   ownerUserId     String?
   ownerName       String?
   businessContext String?
+  description     String?
   tags            String[]
   isActive        Boolean  @default(true)
   createdAt       DateTime @default(now())
