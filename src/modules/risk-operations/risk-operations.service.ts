@@ -97,6 +97,7 @@ const RiskSchema = z.object({
   residualLikelihood: scoreInput.optional().nullable(),
   residualImpact: scoreInput.optional().nullable(),
   status: RiskStatus.default('IDENTIFIED'),
+  ownerUserId: optionalText,
   ownerName: optionalText,
   isActive: z.boolean().optional(),
 });
@@ -221,6 +222,71 @@ export class RiskOperationsService {
     });
   }
 
+  listUserOptions() {
+    return this.prisma.user.findMany({
+      where: { isActive: true },
+      select: { id: true, email: true },
+      orderBy: { email: 'asc' },
+    });
+  }
+
+  async listRiskAlerts() {
+    const [assets, alerts] = await Promise.all([
+      this.prisma.informationAsset.findMany({
+        where: { isActive: true },
+        select: {
+          id: true,
+          code: true,
+          name: true,
+          tags: true,
+          criticality: true,
+        },
+      }),
+      this.prisma.alertHistory.findMany({
+        orderBy: [
+          { sentAt: { sort: 'desc', nulls: 'last' } },
+          { createdAt: 'desc' },
+        ],
+        take: 200,
+      }),
+    ]);
+
+    return alerts
+      .map((alert) => {
+        const payload = this.asPayloadObject(alert.payload);
+        const sourceText = this.alertSourceText(alert, payload);
+        const matchedAssets = assets
+          .map((asset) => {
+            const matchedTags = asset.tags.filter((tag) =>
+              this.matchesAlertTag(sourceText, tag),
+            );
+            return matchedTags.length > 0 ? { ...asset, matchedTags } : null;
+          })
+          .filter(Boolean);
+
+        if (matchedAssets.length === 0) return null;
+
+        return {
+          id: alert.id,
+          incidentId: alert.incidentId,
+          eventId: alert.eventId,
+          sourceKey: alert.sourceKey ?? alert.serviceSource,
+          serviceSource: alert.serviceSource,
+          country: alert.country,
+          victim: alert.victim,
+          group: alert.group,
+          severity: alert.severity,
+          sentAt: alert.sentAt,
+          createdAt: alert.createdAt,
+          sourceMessage: this.alertSourceMessage(alert, payload),
+          payload,
+          matchedAssets,
+        };
+      })
+      .filter(Boolean)
+      .slice(0, 50);
+  }
+
   async getRiskMatrix() {
     const [criteria, risks] = await Promise.all([
       this.getCriteria(),
@@ -284,6 +350,7 @@ export class RiskOperationsService {
   async createRisk(user: AuthenticatedUser, body: unknown) {
     const data = RiskSchema.parse(body);
     await this.ensureAsset(data.assetId);
+    if (data.ownerUserId) await this.ensureUser(data.ownerUserId);
     const scores = this.riskScores(
       data.likelihood,
       data.impact,
@@ -294,7 +361,7 @@ export class RiskOperationsService {
       data: {
         ...data,
         ...scores,
-        ownerUserId: user.id,
+        ownerUserId: data.ownerUserId || user.id,
       },
       include: { asset: true, treatments: true, controls: true },
     });
@@ -303,6 +370,7 @@ export class RiskOperationsService {
   async updateRisk(id: string, body: unknown) {
     const data = RiskSchema.partial().parse(body);
     if (data.assetId) await this.ensureAsset(data.assetId);
+    if (data.ownerUserId) await this.ensureUser(data.ownerUserId);
     const current = await this.ensureRisk(id);
     const likelihood = data.likelihood ?? current.likelihood;
     const impact = data.impact ?? current.impact;
@@ -611,6 +679,90 @@ export class RiskOperationsService {
     const risk = await this.prisma.risk.findUnique({ where: { id } });
     if (!risk) throw new NotFoundException('Risk not found');
     return risk;
+  }
+
+  private async ensureUser(id: string) {
+    const user = await this.prisma.user.findFirst({
+      where: { id, isActive: true },
+      select: { id: true },
+    });
+    if (!user) throw new NotFoundException('User not found');
+  }
+
+  private asPayloadObject(payload: Prisma.JsonValue): Record<string, unknown> {
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+      return {};
+    }
+    return payload as Record<string, unknown>;
+  }
+
+  private alertSourceMessage(
+    alert: {
+      incidentId: string;
+      victim: string;
+      group: string;
+      country: string;
+      severity: string | null;
+    },
+    payload: Record<string, unknown>,
+  ) {
+    const telegramMessage = payload.telegramMessage;
+    if (typeof telegramMessage === 'string' && telegramMessage.trim()) {
+      return telegramMessage;
+    }
+    const content = payload.content;
+    if (typeof content === 'string' && content.trim()) {
+      return content;
+    }
+    const description = payload.description;
+    if (typeof description === 'string' && description.trim()) {
+      return description;
+    }
+    return [alert.victim, alert.group, alert.country, alert.severity]
+      .filter(Boolean)
+      .join(' · ');
+  }
+
+  private alertSourceText(
+    alert: {
+      incidentId: string;
+      eventId: string | null;
+      serviceSource: string;
+      sourceKey: string | null;
+      country: string;
+      victim: string;
+      group: string;
+      severity: string | null;
+    },
+    payload: Record<string, unknown>,
+  ) {
+    return [
+      alert.incidentId,
+      alert.eventId,
+      alert.serviceSource,
+      alert.sourceKey,
+      alert.country,
+      alert.victim,
+      alert.group,
+      alert.severity,
+      this.safeJson(payload),
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase();
+  }
+
+  private matchesAlertTag(sourceText: string, tag: string) {
+    const normalized = tag.trim().toLowerCase();
+    return normalized.length > 0 && sourceText.includes(normalized);
+  }
+
+  private safeJson(value: unknown) {
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return '';
+    }
   }
 
   private async ensureTreatment(id: string) {

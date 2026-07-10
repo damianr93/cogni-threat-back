@@ -45,9 +45,19 @@ export class RiskOperationsController {
     return this.service.listRisks();
   }
 
+  @Get('risks/alerts')
+  listRiskAlerts() {
+    return this.service.listRiskAlerts();
+  }
+
   @Get('risks/matrix')
   getRiskMatrix() {
     return this.service.getRiskMatrix();
+  }
+
+  @Get('users')
+  listUserOptions() {
+    return this.service.listUserOptions();
   }
 
   @Get('criteria')
