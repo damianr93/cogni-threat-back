@@ -1,17 +1,17 @@
 {
-  "name": "cogni-threat",
+  "name": "cogni-threat-back",
   "version": "0.0.3",
   "description": "Cogni-Threat Intelligence Platform",
-  "author": "Daniel",
+  "author": "Damian Rodriguez",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+ssh://git@github.com/daniel3736/cogni-threat.git"
+    "url": "git+https://github.com/damianr93/cogni-threat-back.git"
   },
   "bugs": {
-    "url": "https://github.com/daniel3736/cogni-threat/issues"
+    "url": "https://github.com/damianr93/cogni-threat-back/issues"
   },
-  "homepage": "https://github.com/daniel3736/cogni-threat#readme",
+  "homepage": "https://github.com/damianr93/cogni-threat-back#readme",
   "packageManager": "pnpm@9.15.9",
   "scripts": {
     "build": "nest build",
@@ -32,14 +32,10 @@
     "db:studio": "prisma studio",
     "db:migrate": "prisma migrate dev",
     "db:migrate:deploy": "prisma migrate deploy",
-    "ingest:actors": "ts-node scripts/ingest-actors.ts",
     "ingest:fake-news": "ts-node scripts/ingest-fake-news.ts",
-    "ingest:hitos": "ts-node scripts/ingest-hitos.ts",
-    "ingest:hitos2": "ts-node scripts/ingest-hitos.ts hitos-por-grupos2.json",
-    "fix:duplicate-actors": "ts-node scripts/fix-duplicate-actors.ts",
-    "fix:strip-urls-from-descriptions": "ts-node scripts/strip-urls-from-descriptions.ts",
     "seed:vuln": "ts-node scripts/seed-vuln.ts",
-    "seed:admin": "ts-node scripts/seed-admin.ts"
+    "seed:admin": "ts-node scripts/seed-admin.ts",
+    "telegram:auth": "ts-node scripts/telegram-auth.ts"
   },
   "dependencies": {
     "@nestjs/axios": "^4.0.0",

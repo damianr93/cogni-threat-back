@@ -60,7 +60,21 @@ Check the API is healthy:
 curl http://localhost:${API_PORT:-3000}/health
 ```
 
-## 4. Updating
+## 4. Telegram monitoring (optional)
+
+To monitor Telegram channels you need a `TELEGRAM_SESSION_STRING`. Generate one
+interactively (asks for your phone number and the code Telegram sends you):
+
+```bash
+pnpm install
+pnpm run telegram:auth
+```
+
+Copy the printed `TELEGRAM_SESSION_STRING` into your `.env` (or into the admin
+secrets panel) alongside `TELEGRAM_API_ID` / `TELEGRAM_API_HASH` from
+https://my.telegram.org.
+
+## 5. Updating
 
 ```bash
 git pull
