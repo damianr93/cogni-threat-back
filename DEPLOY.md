@@ -71,11 +71,30 @@ app is running — no restart needed. `EMBEDDING_DIM` must stay in `.env`
 because it has to match the vector dimension stored in pgvector; changing it
 after data exists requires reindexing.
 
+**Networking gotcha:** if Ollama runs on your host machine (installed
+natively, not as a container) and the API runs inside Docker, `localhost`
+inside the container refers to the container itself, not your host. Use
+`http://host.docker.internal:11434` instead — this is already the default in
+`.env.template`, and `docker-compose.yml`/`docker-compose.prod.yml` map that
+hostname for you (works out of the box on Docker Desktop for macOS/Windows;
+on Linux it requires Docker 20.10+, which the compose files already account
+for via `extra_hosts`). If you run Ollama as its own container on the same
+Docker network instead, point `OLLAMA_URL` at that container's service name.
+
 ## 5. Telegram monitoring (optional)
 
-To monitor Telegram channels you need a `TELEGRAM_SESSION_STRING`. Generate
-one interactively (asks for your phone number and the code Telegram sends
-you):
+To monitor Telegram channels you need `TELEGRAM_API_ID` / `TELEGRAM_API_HASH`
+(from https://my.telegram.org) plus a `TELEGRAM_SESSION_STRING`.
+
+**From the admin panel (recommended):** go to **Administración → Fuentes,
+credenciales e IA**, save `TELEGRAM_API_ID` and `TELEGRAM_API_HASH` first —
+the "Conectar cuenta de Telegram" phone-login flow reads those from the
+secrets panel, not from `.env`, so it will refuse to start until they're
+saved there.
+
+**From the CLI (alternative):** generate the session string interactively
+(asks for your phone number and the code Telegram sends you) and paste the
+result into `.env` or the admin panel:
 
 ```bash
 pnpm install

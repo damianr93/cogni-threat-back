@@ -32,6 +32,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       - NODE_ENV=${NODE_ENV:-development}
       - DATABASE_URL=postgresql://${DB_USERNAME:-cogni_user}:${DB_PASSWORD:-cogni_password}@postgres:5432/${DB_DATABASE:-cogni_threat}
