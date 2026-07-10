@@ -51,13 +51,21 @@ export class VectorRepository implements OnModuleInit {
         CREATE INDEX IF NOT EXISTS idx_ai_vectors_category
           ON ai_context_vectors (category)
       `);
+      await client.query(`
+        CREATE INDEX IF NOT EXISTS idx_ai_vectors_source_fts
+          ON ai_context_vectors USING GIN (to_tsvector('spanish', source))
+      `);
+      await client.query(`
+        CREATE INDEX IF NOT EXISTS idx_ai_vectors_text_fts
+          ON ai_context_vectors USING GIN (to_tsvector('spanish', text))
+      `);
       this.ready = true;
       this.logger.log('Vector schema listo');
     } catch (err: any) {
       this.logger.error(
         `pgvector no disponible en esta instancia PostgreSQL: ${err?.message}. ` +
-        `Instalá la extensión con: CREATE EXTENSION vector; (requiere superuser). ` +
-        `El módulo AI funcionará sin indexación hasta que esté disponible.`,
+          `Instalá la extensión con: CREATE EXTENSION vector; (requiere superuser). ` +
+          `El módulo AI funcionará sin indexación hasta que esté disponible.`,
       );
     } finally {
       client.release();
@@ -71,7 +79,9 @@ export class VectorRepository implements OnModuleInit {
   async deleteBySource(source: string): Promise<void> {
     const client = await this.pool.connect();
     try {
-      await client.query('DELETE FROM ai_context_vectors WHERE source = $1', [source]);
+      await client.query('DELETE FROM ai_context_vectors WHERE source = $1', [
+        source,
+      ]);
     } finally {
       client.release();
     }
@@ -91,7 +101,13 @@ export class VectorRepository implements OnModuleInit {
       await client.query(
         `INSERT INTO ai_context_vectors (text, embedding, source, category, chunk_index, total_chunks)
          VALUES ($1, ${embStr}, $2, $3, $4, $5)`,
-        [opts.text, opts.source, opts.category, opts.chunkIndex, opts.totalChunks],
+        [
+          opts.text,
+          opts.source,
+          opts.category,
+          opts.chunkIndex,
+          opts.totalChunks,
+        ],
       );
     } finally {
       client.release();
@@ -119,8 +135,16 @@ export class VectorRepository implements OnModuleInit {
         let idx = 1;
         for (const c of batch) {
           const embStr = `ARRAY[${c.embedding.join(',')}]::vector(${envs.EMBEDDING_DIM})::halfvec(${envs.EMBEDDING_DIM})`;
-          placeholders.push(`($${idx}, ${embStr}, $${idx + 1}, $${idx + 2}, $${idx + 3}, $${idx + 4})`);
-          values.push(c.text, c.source, c.category, c.chunkIndex, c.totalChunks);
+          placeholders.push(
+            `($${idx}, ${embStr}, $${idx + 1}, $${idx + 2}, $${idx + 3}, $${idx + 4})`,
+          );
+          values.push(
+            c.text,
+            c.source,
+            c.category,
+            c.chunkIndex,
+            c.totalChunks,
+          );
           idx += 5;
         }
         await client.query(
@@ -185,15 +209,34 @@ export class VectorRepository implements OnModuleInit {
     try {
       const params: unknown[] = [];
       const filters: string[] = [];
+      const search = opts.search?.trim();
 
       if (opts.category) {
         params.push(opts.category);
         filters.push(`category = $${params.length}`);
       }
-      if (opts.search?.trim()) {
-        params.push(`%${opts.search.trim()}%`);
-        const i = params.length;
-        filters.push(`(source ILIKE $${i} OR text ILIKE $${i})`);
+
+      let rankSelect = '0';
+      if (search) {
+        // Combine full-text search (relevance-ranked, source weighted above text)
+        // with ILIKE (keeps recall for short/partial/typo-ish substrings that FTS misses).
+        params.push(search);
+        const tsIdx = params.length;
+        params.push(`%${search}%`);
+        const likeIdx = params.length;
+
+        filters.push(`(
+          to_tsvector('spanish', source) @@ websearch_to_tsquery('spanish', $${tsIdx})
+          OR to_tsvector('spanish', text) @@ websearch_to_tsquery('spanish', $${tsIdx})
+          OR source ILIKE $${likeIdx}
+          OR text ILIKE $${likeIdx}
+        )`);
+
+        rankSelect = `(
+          setweight(to_tsvector('spanish', source), 'A') ||
+          setweight(to_tsvector('spanish', text), 'B')
+        ), websearch_to_tsquery('spanish', $${tsIdx})`;
+        rankSelect = `ts_rank(${rankSelect})`;
       }
 
       const where = filters.length > 0 ? `WHERE ${filters.join(' AND ')}` : '';
@@ -209,14 +252,30 @@ export class VectorRepository implements OnModuleInit {
       params.push(opts.offset);
       const offsetIdx = params.length;
 
-      const result = await client.query(
-        `SELECT DISTINCT ON (source) source, category, LEFT(text, 200) AS summary
-         FROM ai_context_vectors
-         ${where}
-         ORDER BY source, chunk_index
-         LIMIT $${limitIdx} OFFSET $${offsetIdx}`,
-        params,
-      );
+      // When searching, dedupe to the best-ranked chunk per source, then order
+      // the resulting one-row-per-source set by that relevance rank.
+      // Without a search term, preserve the original insertion-order behavior.
+      const result = search
+        ? await client.query(
+            `SELECT source, category, summary FROM (
+               SELECT DISTINCT ON (source)
+                 source, category, LEFT(text, 200) AS summary, ${rankSelect} AS rank
+               FROM ai_context_vectors
+               ${where}
+               ORDER BY source, rank DESC, chunk_index
+             ) ranked_sources
+             ORDER BY rank DESC, source
+             LIMIT $${limitIdx} OFFSET $${offsetIdx}`,
+            params,
+          )
+        : await client.query(
+            `SELECT DISTINCT ON (source) source, category, LEFT(text, 200) AS summary
+             FROM ai_context_vectors
+             ${where}
+             ORDER BY source, chunk_index
+             LIMIT $${limitIdx} OFFSET $${offsetIdx}`,
+            params,
+          );
 
       return {
         items: result.rows.map((r: any) => ({
@@ -235,7 +294,9 @@ export class VectorRepository implements OnModuleInit {
     if (!this.ready) return -1;
     const client = await this.pool.connect();
     try {
-      const result = await client.query('SELECT COUNT(*) AS total FROM ai_context_vectors');
+      const result = await client.query(
+        'SELECT COUNT(*) AS total FROM ai_context_vectors',
+      );
       return parseInt(result.rows[0].total, 10);
     } finally {
       client.release();
