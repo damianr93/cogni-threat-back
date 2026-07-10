@@ -2,23 +2,28 @@
 
 Backend desarrollado con NestJS, TypeScript y Prisma para la gestión, monitoreo y análisis de amenazas cibernéticas.
 
-## Quick Start With Docker
+This is the **backend** half of CogniThreat. The companion frontend repo lives at
+**[damianr93/cogni-threat-front](https://github.com/damianr93/cogni-threat-front)**
+— clone both as sibling directories, this repo's compose file builds and runs both.
 
-This is the recommended path for community users. Keep `cogni-threat` and `cogni-threat-front` as sibling directories, then run the full stack from this backend repository.
+## Quick Start (full stack, Docker)
 
 ```bash
-corepack enable
+git clone https://github.com/damianr93/cogni-threat-back.git
+git clone https://github.com/damianr93/cogni-threat-front.git
+cd cogni-threat-back
 cp .env.template .env
+# edit .env: set DB_PASSWORD, JWT_SECRET, SECRETS_MASTER_KEY, ADMIN_EMAIL, ADMIN_PASSWORD
 docker compose up --build
 ```
 
-The default compose stack starts PostgreSQL, the NestJS API, and the frontend container. The frontend is exposed on `http://localhost:8080` by default and proxies API traffic to the backend container.
+This starts PostgreSQL (pgvector), the NestJS API, and the frontend — built from
+`../cogni-threat-front` — behind Nginx. Open `http://localhost:8080` and sign in
+with the `ADMIN_EMAIL` / `ADMIN_PASSWORD` you set; that user is created automatically
+as `ADMIN/WRITE` on first boot.
 
-Use `API_HOST_PORT`, `FRONT_PORT`, and `DB_PORT` when you need to change host ports. Keep `API_PORT=3000` unless you intentionally change the port used inside the API container.
-
-Before the first boot, set `ADMIN_EMAIL` and `ADMIN_PASSWORD` in `.env`. The API automatically creates or updates that user as `ADMIN/WRITE` during startup, so the first login can continue setup from the UI.
-
-Before exposing a production deployment, set strong values for `DB_PASSWORD`, `JWT_SECRET`, `SECRETS_MASTER_KEY`, `ADMIN_PASSWORD`, and `CORS_ORIGIN`.
+Full step-by-step guide (env var reference, Telegram setup, production profile,
+updating): see **[DEPLOY.md](./DEPLOY.md)**.
 
 After signing in, go to **Administración → Fuentes, credenciales e IA** to configure external API credentials and Ollama/RAG settings. Ollama values stored from the panel override `.env` fallbacks without restarting the container.
 
@@ -36,17 +41,6 @@ Configurable from the admin panel:
 `EMBEDDING_DIM` stays in `.env` because it must match the vector dimension stored in PostgreSQL/pgvector. If you switch to an embedding model with a different dimension, update `EMBEDDING_DIM` before indexing data and rebuild/reindex embeddings. Changing it after data exists requires regenerating the vector index.
 
 OpenAI-compatible APIs are not supported yet. Adding them should be done as an explicit provider option (`ollama` / `openai`) with separate API-key, chat-model, embedding-model, and base-URL settings.
-
-## Docker Smoke Test
-
-Use this before opening a release or sharing setup instructions:
-
-```bash
-docker compose up --build
-curl http://localhost:3000/health
-```
-
-Then open `http://localhost:8080` and sign in with the administrator configured through `ADMIN_EMAIL` and `ADMIN_PASSWORD`.
 
 ## Tecnologías utilizadas
 
@@ -75,7 +69,7 @@ El proyecto utiliza Corepack para gestionar la versión de pnpm.
 Clonar el repositorio:
 
 ```bash
-git clone <url-del-repositorio>
+git clone https://github.com/damianr93/cogni-threat-back.git
 cd cogni-threat-back
 ```
 
@@ -96,12 +90,7 @@ Copiar el archivo de ejemplo:
 cp .env.template .env
 ```
 
-Configurar las variables necesarias:
-
-```env
-DATABASE_URL=
-PORT=3000
-```
+Ver `.env.template` para la referencia completa de variables (base de datos, JWT, secretos del panel admin, fuentes de datos, IA/RAG).
 
 > El archivo `.env` no se versiona.
 
@@ -308,16 +297,11 @@ El processor (`handleVulnMonitorAlerts`) usa `matchCveToProfiles` sobre `affecte
 
 # Docker
 
-## Entorno estándar
+Ver **[DEPLOY.md](./DEPLOY.md)** para el setup completo (full stack, variables requeridas, perfil de producción).
 
 ```bash
-docker compose up -d --build
-```
-
-## Entorno producción
-
-```bash
-docker compose -f docker-compose.prod.yml up -d --build
+docker compose up -d --build                          # stack estándar
+docker compose -f docker-compose.prod.yml up -d --build  # perfil de producción
 ```
 
 ---
@@ -328,14 +312,17 @@ docker compose -f docker-compose.prod.yml up -d --build
 src/
 ├── modules/
 │   ├── actors/
+│   ├── ai-chat/
 │   ├── alerts/
+│   ├── auth/
 │   ├── countries/
-│   ├── cyber-news/
 │   ├── dashboard/
 │   ├── data-sources/
 │   ├── fake-news/
 │   ├── health/
+│   ├── platform-secrets/
 │   ├── ransomware/
+│   ├── risk-operations/
 │   └── vuln-monitor/
 │
 ├── shared/
@@ -357,14 +344,17 @@ storage/
 # Módulos principales
 
 * Actors
+* AI Chat (RAG sobre datos de la plataforma, vía Ollama)
 * Alerts
+* Auth
 * Countries
-* Cyber News
 * Dashboard
 * Data Sources
 * Fake News
 * Health
+* Platform Secrets (panel admin de credenciales)
 * Ransomware
+* Risk Operations
 * Vulnerability Monitor
 
 ---
@@ -441,44 +431,6 @@ No versionar:
 
 ---
 
-# Flujo de trabajo Git
+# Contribuir
 
-## Rama principal de desarrollo
-
-Todos los cambios deben realizarse sobre la rama:
-
-```bash
-develop
-```
-
-Flujo habitual:
-
-```bash
-git checkout develop
-
-git pull origin develop
-
-git add .
-
-git commit -m "Descripción del cambio"
-
-git push origin develop
-```
-
-## Despliegue
-
-La rama `develop` es utilizada como rama principal de desarrollo.
-
-Una vez validados los cambios, el despliegue a los entornos correspondientes se realiza mediante los pipelines de CI/CD configurados para el proyecto.
-
-No realizar cambios directamente sobre los servidores de producción.
-
-## Buenas prácticas
-
-* Mantener la rama `develop` actualizada antes de comenzar a trabajar.
-* Realizar commits descriptivos y pequeños cuando sea posible.
-* Verificar que la aplicación compile correctamente antes de realizar un push.
-* Evitar commits con archivos temporales, credenciales o archivos `.env`.
-
-```
-```
+Ver [CONTRIBUTING.md](./CONTRIBUTING.md) para el flujo de fork, branches y pull requests.
