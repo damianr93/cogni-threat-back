@@ -75,7 +75,10 @@ export const envs = {
   GITHUB_TOKEN: get('GITHUB_TOKEN').asString(),
 
   // AI / RAG (Ollama)
-  OLLAMA_URL: get('OLLAMA_URL').default('http://localhost:11434').asString(),
+  // Default apunta a host.docker.internal porque el path recomendado es Docker
+  // con Ollama corriendo nativo en el host. Si corrés todo sin Docker, seteá
+  // OLLAMA_URL=http://localhost:11434 en .env o cambialo desde el panel admin.
+  OLLAMA_URL: get('OLLAMA_URL').default('http://host.docker.internal:11434').asString(),
   MODEL: get('MODEL').default('gpt-oss').asString(),
   EMBEDDING_MODEL: get('EMBEDDING_MODEL').default('qwen3-embedding').asString(),
   EMBEDDING_DIM: get('EMBEDDING_DIM').default('4096').asIntPositive(),
