@@ -67,22 +67,4 @@ export const MOCK_CONTEXT_SOURCES: ContextSourceItem[] = [
     category: 'telegram',
     summary: '8 CVEs críticos',
   },
-  {
-    id: 'cyber-news:supply-chain-001',
-    label: 'Ataque cadena de suministro SaaS',
-    category: 'cyber-news',
-    summary: 'Incidente sector tech',
-  },
-  {
-    id: 'cyber-news:ransom-hospital-002',
-    label: 'Hospital EU — ransomware',
-    category: 'cyber-news',
-    summary: 'Interrupción servicios',
-  },
-  {
-    id: 'cyber-news:nation-state-003',
-    label: 'Operación estado-nación LATAM',
-    category: 'cyber-news',
-    summary: 'Infra crítica',
-  },
 ];

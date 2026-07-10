@@ -20,10 +20,4 @@ export const MOCK_CONTEXT_CATEGORIES: ContextCategory[] = [
     label: 'Alertas Telegram',
     color: '#4ade80',
   },
-  {
-    id: 'cyber-news',
-    name: 'cyber-news',
-    label: 'Cyber News',
-    color: '#64748b',
-  },
 ];
