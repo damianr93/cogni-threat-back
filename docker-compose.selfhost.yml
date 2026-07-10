@@ -19,7 +19,7 @@ services:
 
   cogni-threat-api:
     build:
-      context: ./cogni-threat
+      context: ./cogni-threat-back
       dockerfile: Dockerfile
     container_name: cogni-threat-api
     restart: unless-stopped

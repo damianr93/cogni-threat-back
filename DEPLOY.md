@@ -7,7 +7,7 @@ sibling directories.
 ## 1. Layout
 
 ```
-cogni-threat/                  <- this repo
+cogni-threat-back/             <- this repo
 ├── docker-compose.selfhost.yml
 ├── .env
 cogni-threat-front/            <- sibling clone
@@ -16,13 +16,13 @@ cogni-threat-front/            <- sibling clone
 Clone both repos next to each other:
 
 ```bash
-git clone https://github.com/<your-account>/cogni-threat.git
+git clone https://github.com/<your-account>/cogni-threat-back.git
 git clone https://github.com/<your-account>/cogni-threat-front.git
 ```
 
 ## 2. Configure environment
 
-From inside `cogni-threat/`:
+From inside `cogni-threat-back/`:
 
 ```bash
 cp .env.template .env
