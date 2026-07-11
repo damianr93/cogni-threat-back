@@ -53,6 +53,7 @@ const optionalText = z
   .optional()
   .nullable()
   .transform((value) => value || undefined);
+const nullableId = z.string().trim().min(1).optional().nullable();
 const rating = z.coerce.number().int().min(1).max(5);
 const scoreInput = z.coerce.number().int().min(1).max(5);
 const dateInput = z
@@ -150,9 +151,9 @@ const KpiSchema = z.object({
   targetValue: z.coerce.number(),
   warningValue: z.coerce.number().optional().nullable(),
   direction: KpiDirection.default('HIGHER_IS_BETTER'),
-  assetId: optionalText,
-  riskId: optionalText,
-  controlId: optionalText,
+  assetId: nullableId,
+  riskId: nullableId,
+  controlId: nullableId,
   isActive: z.boolean().optional(),
 });
 
@@ -784,9 +785,9 @@ export class RiskOperationsService {
   }
 
   private async ensureKpiLinks(
-    assetId?: string,
-    riskId?: string,
-    controlId?: string,
+    assetId?: string | null,
+    riskId?: string | null,
+    controlId?: string | null,
   ) {
     if (assetId) await this.ensureAsset(assetId);
     if (riskId) await this.ensureRisk(riskId);
