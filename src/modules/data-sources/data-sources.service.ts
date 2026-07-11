@@ -3,6 +3,10 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../../shared/database/prisma.service';
 import { RansomwareService } from '../ransomware/ransomware.service';
 import { GroupsSyncProgressService } from './groups-sync-progress.service';
+import type {
+  CreateDataSourceDto,
+  UpdateDataSourceDto,
+} from './dto/data-source.dto';
 
 @Injectable()
 export class DataSourcesService {
@@ -121,11 +125,11 @@ export class DataSourcesService {
     return dataSource;
   }
 
-  async createDataSource(createDataSourceDto: any) {
+  async createDataSource(createDataSourceDto: CreateDataSourceDto) {
     return this.prisma.dataSource.create({ data: createDataSourceDto });
   }
 
-  async updateDataSource(id: string, updateDataSourceDto: any) {
+  async updateDataSource(id: string, updateDataSourceDto: UpdateDataSourceDto) {
     await this.getDataSource(id);
     return this.prisma.dataSource.update({
       where: { id },

@@ -10,6 +10,10 @@ import {
 import { DataSourcesService } from './data-sources.service';
 import { SyncRecoveryService } from './sync-recovery.service';
 import { RequireWrite } from '../../shared/auth/decorators/require-write.decorator';
+import {
+  CreateDataSourceDto,
+  UpdateDataSourceDto,
+} from './dto/data-source.dto';
 
 @Controller('data-sources')
 export class DataSourcesController {
@@ -35,7 +39,7 @@ export class DataSourcesController {
 
   @Post()
   @RequireWrite()
-  async createDataSource(@Body() createDataSourceDto: any) {
+  async createDataSource(@Body() createDataSourceDto: CreateDataSourceDto) {
     return this.dataSourcesService.createDataSource(createDataSourceDto);
   }
 
@@ -43,7 +47,7 @@ export class DataSourcesController {
   @RequireWrite()
   async updateDataSource(
     @Param('id') id: string,
-    @Body() updateDataSourceDto: any,
+    @Body() updateDataSourceDto: UpdateDataSourceDto,
   ) {
     return this.dataSourcesService.updateDataSource(id, updateDataSourceDto);
   }

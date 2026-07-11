@@ -12,6 +12,14 @@ import { AlertsService } from './alerts.service';
 import { RequireWrite } from '../../shared/auth/decorators/require-write.decorator';
 import { CurrentUser } from '../../shared/auth/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../../shared/auth/types/authenticated-user.type';
+import {
+  CreateNotificationChannelDto,
+  UpdateNotificationChannelDto,
+} from './dto/notification-channel.dto';
+import {
+  CreateAlertSubscriptionDto,
+  UpdateAlertSubscriptionDto,
+} from './dto/alert-subscription.dto';
 
 @Controller('alerts')
 export class AlertsController {
@@ -30,7 +38,7 @@ export class AlertsController {
   @Post('notification-channels')
   @RequireWrite()
   async createNotificationChannel(
-    @Body() data: any,
+    @Body() data: CreateNotificationChannelDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.alertsService.createNotificationChannel(user.id, data);
@@ -40,7 +48,7 @@ export class AlertsController {
   @RequireWrite()
   async updateNotificationChannel(
     @Param('id') id: string,
-    @Body() data: any,
+    @Body() data: UpdateNotificationChannelDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.alertsService.updateNotificationChannel(id, user.id, data);
@@ -63,7 +71,7 @@ export class AlertsController {
   @Post('subscriptions')
   @RequireWrite()
   async createSubscription(
-    @Body() data: any,
+    @Body() data: CreateAlertSubscriptionDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.alertsService.createSubscription(user.id, data);
@@ -73,7 +81,7 @@ export class AlertsController {
   @RequireWrite()
   async updateSubscription(
     @Param('id') id: string,
-    @Body() data: any,
+    @Body() data: UpdateAlertSubscriptionDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.alertsService.updateSubscription(id, user.id, data);
