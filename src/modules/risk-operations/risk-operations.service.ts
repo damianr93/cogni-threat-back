@@ -126,6 +126,8 @@ const ActionSchema = z.object({
   evidenceUrl,
   evidenceNotes: optionalText,
   completedAt: dateInput,
+  controlId: nullableId,
+  kpiId: nullableId,
 });
 
 const ControlSchema = z.object({
@@ -403,7 +405,7 @@ export class RiskOperationsService {
     return this.prisma.riskTreatment.findMany({
       include: {
         risk: { include: { asset: true } },
-        actions: true,
+        actions: { include: { control: true, kpi: true } },
         controls: true,
       },
       orderBy: { updatedAt: 'desc' },
@@ -427,7 +429,7 @@ export class RiskOperationsService {
       } as Prisma.RiskTreatmentUncheckedCreateInput,
       include: {
         risk: { include: { asset: true } },
-        actions: true,
+        actions: { include: { control: true, kpi: true } },
         controls: true,
       },
     });
@@ -450,7 +452,7 @@ export class RiskOperationsService {
       },
       include: {
         risk: { include: { asset: true } },
-        actions: true,
+        actions: { include: { control: true, kpi: true } },
         controls: true,
       },
     });
@@ -474,6 +476,7 @@ export class RiskOperationsService {
         treatmentId,
         ownerUserId: user.id,
       } as Prisma.TreatmentActionUncheckedCreateInput,
+      include: { control: true, kpi: true },
     });
   }
 
@@ -482,6 +485,7 @@ export class RiskOperationsService {
     return this.prisma.treatmentAction.update({
       where: { id },
       data: this.actionData(data),
+      include: { control: true, kpi: true },
     });
   }
 
