@@ -3,6 +3,7 @@ import { OllamaChatProvider } from '../providers/ollama-chat.provider';
 import { OllamaEmbeddingsProvider } from '../providers/ollama-embeddings.provider';
 import { VectorRepository } from '../vector/vector.repository';
 import { AiConfigService } from '../ai-config.service';
+import { EmbeddingSyncControlService } from '../ingestion/embedding-sync-control.service';
 
 const SYSTEM_PROMPT = `Eres un asistente especializado en inteligencia de amenazas cibernéticas.
 Tienes acceso a datos actualizados de:
@@ -28,6 +29,7 @@ export class RagService {
     private readonly embeddings: OllamaEmbeddingsProvider,
     private readonly vectors: VectorRepository,
     private readonly config: AiConfigService,
+    private readonly embeddingSyncControl: EmbeddingSyncControlService,
   ) {}
 
   async ask(opts: {
@@ -36,48 +38,51 @@ export class RagService {
     categories?: string[];
     sources?: string[];
   }): Promise<string> {
-    const { question, history, categories, sources } = opts;
+    return this.embeddingSyncControl.runWithInteractivePriority(async () => {
+      const { question, history, categories, sources } = opts;
 
-    let queryEmbedding: number[];
-    try {
-      queryEmbedding = await this.embeddings.generateQueryEmbedding(question);
-    } catch (err: any) {
-      this.logger.error(
-        `Error generando embedding de consulta: ${err?.message}`,
-      );
-      throw err;
-    }
+      let queryEmbedding: number[];
+      try {
+        queryEmbedding = await this.embeddings.generateQueryEmbedding(question);
+      } catch (err: any) {
+        this.logger.error(
+          `Error generando embedding de consulta: ${err?.message}`,
+        );
+        throw err;
+      }
 
-    const aiConfig = await this.config.getConfig();
-    const chunks = await this.vectors.findSimilar({
-      embedding: queryEmbedding,
-      k: aiConfig.retrieveCandidates,
-      categories: categories && categories.length > 0 ? categories : undefined,
-      sources: sources && sources.length > 0 ? sources : undefined,
+      const aiConfig = await this.config.getConfig();
+      const chunks = await this.vectors.findSimilar({
+        embedding: queryEmbedding,
+        k: aiConfig.retrieveCandidates,
+        categories:
+          categories && categories.length > 0 ? categories : undefined,
+        sources: sources && sources.length > 0 ? sources : undefined,
+      });
+
+      const contextStr = chunks.length > 0 ? this.buildContext(chunks) : '';
+
+      const recentHistory = history.slice(-MAX_HISTORY);
+
+      const userContent = contextStr
+        ? `CONTEXTO:\n${contextStr}\n\nPREGUNTA:\n${question}`
+        : `PREGUNTA:\n${question}`;
+
+      const messages = [
+        { role: 'system', content: SYSTEM_PROMPT },
+        ...recentHistory,
+        { role: 'user', content: userContent },
+      ];
+
+      if (chunks.length === 0) {
+        this.logger.warn(
+          `Sin resultados en el índice vectorial para: "${question.slice(0, 80)}"`,
+        );
+      }
+
+      const response = await this.chat.chat(messages);
+      return response;
     });
-
-    const contextStr = chunks.length > 0 ? this.buildContext(chunks) : '';
-
-    const recentHistory = history.slice(-MAX_HISTORY);
-
-    const userContent = contextStr
-      ? `CONTEXTO:\n${contextStr}\n\nPREGUNTA:\n${question}`
-      : `PREGUNTA:\n${question}`;
-
-    const messages = [
-      { role: 'system', content: SYSTEM_PROMPT },
-      ...recentHistory,
-      { role: 'user', content: userContent },
-    ];
-
-    if (chunks.length === 0) {
-      this.logger.warn(
-        `Sin resultados en el índice vectorial para: "${question.slice(0, 80)}"`,
-      );
-    }
-
-    const response = await this.chat.chat(messages);
-    return response;
   }
 
   private buildContext(

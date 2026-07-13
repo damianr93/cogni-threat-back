@@ -10,6 +10,7 @@ import {
   serializeTelegramMessage,
   sourceId,
 } from './entity-serializers';
+import { EmbeddingSyncControlService } from './embedding-sync-control.service';
 
 const BATCH_SIZE = 50;
 // Ollama procesa un modelo a la vez por GPU — este delay entre lotes le deja
@@ -29,6 +30,7 @@ export class IngestionService implements OnApplicationBootstrap {
     private readonly prisma: PrismaService,
     private readonly embeddings: OllamaEmbeddingsProvider,
     private readonly vectors: VectorRepository,
+    private readonly embeddingSyncControl: EmbeddingSyncControlService,
   ) {}
 
   async onApplicationBootstrap() {
@@ -64,10 +66,15 @@ export class IngestionService implements OnApplicationBootstrap {
       // Secuencial (no Promise.all): correrlas en paralelo satura el único
       // GPU/modelo de Ollama y deja sin respuesta al chat interactivo mientras
       // dura la ingesta masiva.
+      await this.waitIfPaused('ransomware:groups');
       await this.ingestRansomwareGroups();
+      await this.waitIfPaused('ransomware:victims');
       await this.ingestRansomwareVictims();
+      await this.waitIfPaused('vuln-monitor:cves');
       await this.ingestVulnCves();
+      await this.waitIfPaused('actors');
       await this.ingestActors();
+      await this.waitIfPaused('telegram:messages');
       await this.ingestTelegramMessages();
     } finally {
       this.running = false;
@@ -93,6 +100,7 @@ export class IngestionService implements OnApplicationBootstrap {
     let indexed = 0;
 
     for (let i = 0; i < records.length; i += BATCH_SIZE) {
+      await this.waitIfPaused('ransomware:groups');
       const batch = records.slice(i, i + BATCH_SIZE);
       const texts = batch.map((g) => serializeRansomwareGroup(g));
       const embeddings = await this.embeddings.generateEmbeddingBatch(texts);
@@ -135,6 +143,7 @@ export class IngestionService implements OnApplicationBootstrap {
     let indexed = 0;
 
     for (let i = 0; i < records.length; i += BATCH_SIZE) {
+      await this.waitIfPaused('ransomware:victims');
       const batch = records.slice(i, i + BATCH_SIZE);
       const texts = batch.map((v) => serializeRansomwareVictim(v));
       const embeddings = await this.embeddings.generateEmbeddingBatch(texts);
@@ -175,6 +184,7 @@ export class IngestionService implements OnApplicationBootstrap {
     let indexed = 0;
 
     for (let i = 0; i < records.length; i += BATCH_SIZE) {
+      await this.waitIfPaused('vuln-monitor:cves');
       const batch = records.slice(i, i + BATCH_SIZE);
       const texts = batch.map((c) => serializeVulnCve(c));
       const embeddings = await this.embeddings.generateEmbeddingBatch(texts);
@@ -216,6 +226,7 @@ export class IngestionService implements OnApplicationBootstrap {
     let indexed = 0;
 
     for (const actor of records) {
+      await this.waitIfPaused('actors');
       const chunks = serializeActor(actor);
       const sid = sourceId.actor(actor.id);
       await this.vectors.deleteBySource(sid);
@@ -254,6 +265,7 @@ export class IngestionService implements OnApplicationBootstrap {
     let indexed = 0;
 
     for (let i = 0; i < records.length; i += BATCH_SIZE) {
+      await this.waitIfPaused('telegram:messages');
       const batch = records.slice(i, i + BATCH_SIZE);
       const texts = batch.map((m) => serializeTelegramMessage(m));
       const embeddings = await this.embeddings.generateEmbeddingBatch(texts);
@@ -294,5 +306,15 @@ export class IngestionService implements OnApplicationBootstrap {
       create: { source, lastSyncAt: new Date(), lastCount: count },
       update: { lastSyncAt: new Date(), lastCount: count },
     });
+  }
+
+  private async waitIfPaused(source: string): Promise<void> {
+    const status = this.embeddingSyncControl.getStatus();
+    if (status.paused) {
+      this.logger.log(
+        `${source} — ingesta pausada (${status.pauseReasons.join(', ')})`,
+      );
+    }
+    await this.embeddingSyncControl.waitIfPaused();
   }
 }

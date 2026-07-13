@@ -121,4 +121,34 @@ export class AiChatController {
       data: { message: 'Ingesta iniciada en background' },
     };
   }
+
+  @Get('admin/sync/status')
+  @Roles('ADMIN')
+  async getSyncStatus() {
+    return {
+      success: true,
+      data: {
+        ...this.sync.getEmbeddingSyncStatus(),
+        index: await this.aiChat.getContextIndexStats(),
+      },
+    };
+  }
+
+  @Post('admin/sync/pause')
+  @Roles('ADMIN')
+  pauseSync() {
+    return {
+      success: true,
+      data: this.sync.pauseEmbeddingSync(),
+    };
+  }
+
+  @Post('admin/sync/resume')
+  @Roles('ADMIN')
+  resumeSync() {
+    return {
+      success: true,
+      data: this.sync.resumeEmbeddingSync(),
+    };
+  }
 }

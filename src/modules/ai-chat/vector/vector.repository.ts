@@ -302,4 +302,28 @@ export class VectorRepository implements OnModuleInit {
       client.release();
     }
   }
+
+  async countByCategory(): Promise<
+    Array<{ category: string; chunks: number; sources: number }>
+  > {
+    if (!this.ready) return [];
+    const client = await this.pool.connect();
+    try {
+      const result = await client.query(
+        `SELECT category,
+                COUNT(*)::int AS chunks,
+                COUNT(DISTINCT source)::int AS sources
+         FROM ai_context_vectors
+         GROUP BY category
+         ORDER BY category`,
+      );
+      return result.rows.map((row: any) => ({
+        category: row.category,
+        chunks: Number(row.chunks),
+        sources: Number(row.sources),
+      }));
+    } finally {
+      client.release();
+    }
+  }
 }

@@ -170,6 +170,10 @@ export class AiChatService {
     return MOCK_CONTEXT_CATEGORIES;
   }
 
+  async getContextIndexStats() {
+    return this.vectorRepo.countByCategory();
+  }
+
   async getContextSources(
     page = 1,
     limit = 20,
