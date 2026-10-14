@@ -21,14 +21,16 @@ function baseConfig(over: Partial<AiRuntimeConfig> = {}): AiRuntimeConfig {
 
 function build(config: AiRuntimeConfig, support: ToolSupport) {
   const getToolSupport = jest.fn().mockResolvedValue(support);
+  const list = jest.fn();
   const service = new AiChatService(
     {} as never,
     {} as never,
     {} as never,
     { getConfig: jest.fn().mockResolvedValue(config) } as never,
     { getToolSupport } as never,
+    { list } as never,
   );
-  return { service, getToolSupport };
+  return { service, getToolSupport, list };
 }
 
 describe('AiChatService.getHealth', () => {
@@ -80,4 +82,28 @@ describe('AiChatService.getHealth', () => {
       });
     },
   );
+});
+
+describe('AiChatService.getContextSources', () => {
+  it('delegates the sidebar search to the context sources service', async () => {
+    const { service, list } = build(baseConfig(), 'supported');
+    const page = {
+      items: [{ id: 'telegram:channel:c1', label: 'c1', category: 'telegram' }],
+      total: 1,
+      page: 2,
+      limit: 10,
+      totalPages: 1,
+    };
+    list.mockResolvedValue(page);
+
+    const out = await service.getContextSources(2, 10, 'c1', 'telegram');
+
+    expect(list).toHaveBeenCalledWith({
+      page: 2,
+      limit: 10,
+      search: 'c1',
+      category: 'telegram',
+    });
+    expect(out).toBe(page);
+  });
 });
