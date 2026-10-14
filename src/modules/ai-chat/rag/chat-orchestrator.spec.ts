@@ -1,10 +1,12 @@
 import { Logger } from '@nestjs/common';
 import {
   ChatOrchestrator,
-  EmptyToolExecutor,
   NO_ANSWER_MESSAGE,
   ToolExecutor,
 } from './chat-orchestrator';
+import { z } from 'zod';
+import { ToolRegistry } from '../tools/tool-registry';
+import { defineTool, limitOf } from '../tools/tool.types';
 
 const VOSEO = /\b(tenés|podés|usá|respondé|decilo|sos|querés|probá|sabés)\b/i;
 
@@ -176,9 +178,9 @@ describe('ChatOrchestrator', () => {
     );
   });
 
-  it('answers an unknown tool with an error through the empty executor and keeps looping', async () => {
+  it('answers an unknown tool with an error through an empty ToolRegistry and keeps looping', async () => {
     const { orchestrator, chatWithTools } = makeOrchestrator({
-      tools: new EmptyToolExecutor(),
+      tools: new ToolRegistry([]),
     });
     chatWithTools
       .mockResolvedValueOnce({
@@ -194,6 +196,37 @@ describe('ChatOrchestrator', () => {
     const fed = chatWithTools.mock.calls[1][0].slice(-1)[0].content;
     expect(fed).toContain('<tool_result name="drop_table">');
     expect(fed).toContain('Unknown tool: drop_table');
+  });
+
+  it('feeds validation errors from a real ToolRegistry back to the model without running the tool', async () => {
+    const run = jest.fn();
+    const registry = new ToolRegistry([
+      defineTool({
+        name: 'search_cves',
+        description: 'Search CVEs.',
+        parameters: { type: 'object', properties: { limit: {} } },
+        schema: z.object({ limit: limitOf(10) }),
+        run,
+      }),
+    ]);
+    const { orchestrator, chatWithTools } = makeOrchestrator({
+      tools: registry,
+    });
+    chatWithTools
+      .mockResolvedValueOnce({
+        content: '',
+        toolCalls: [{ name: 'search_cves', arguments: { limit: 'abc' } }],
+      })
+      .mockResolvedValueOnce({ content: 'Corregido.' });
+
+    const result = await orchestrator.ask(input);
+
+    expect(result.content).toBe('Corregido.');
+    expect(run).not.toHaveBeenCalled();
+    expect(chatWithTools.mock.calls[0][1]).toEqual(registry.definitions);
+    expect(chatWithTools.mock.calls[1][0].slice(-1)[0].content).toContain(
+      'Invalid arguments for search_cves',
+    );
   });
 
   it('strips tool tags from the final text', async () => {
