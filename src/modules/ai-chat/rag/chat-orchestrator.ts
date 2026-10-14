@@ -1,5 +1,6 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { AiConfigService } from '../ai-config.service';
+import { fitContext } from './context-budget';
 import { OllamaChatProvider } from '../providers/ollama-chat.provider';
 import {
   stripToolTags,
@@ -82,8 +83,10 @@ export class ChatOrchestrator {
   ) {}
 
   async ask(input: OrchestratorInput): Promise<OrchestratorResult> {
-    const { maxToolSteps } = await this.config.getConfig();
+    const { maxToolSteps, numCtx, queryMaxChars } =
+      await this.config.getConfig();
     const messages = this.buildMessages(input);
+    const budget = { numCtx, queryMaxChars, turnStart: messages.length - 1 };
     const context: ToolContext = {
       categories: input.categories,
       sources: input.sources,
@@ -91,10 +94,10 @@ export class ChatOrchestrator {
     const toolsUsed: string[] = [];
 
     while (toolsUsed.length < maxToolSteps) {
-      const response = await this.chat.chatWithTools(
-        messages,
-        this.tools.definitions,
-      );
+      const fit = fitContext(messages, this.tools.definitions, budget);
+      if (fit.forceClosure) break;
+      context.maxResultChars = fit.resultCap;
+      const response = await this.chat.chatWithTools(fit.messages, fit.tools);
       if (!response.toolCalls?.length) {
         const text = stripToolTags(response.content);
         if (text) {
@@ -120,10 +123,12 @@ export class ChatOrchestrator {
       }
     }
 
-    const forced = await this.chat.chatWithTools([
-      ...messages,
-      { role: 'user', content: FORCE_CLOSURE_PROMPT },
-    ]);
+    const closing = fitContext(
+      [...messages, { role: 'user', content: FORCE_CLOSURE_PROMPT }],
+      undefined,
+      budget,
+    );
+    const forced = await this.chat.chatWithTools(closing.messages);
     return {
       content: stripToolTags(forced.content) || NO_ANSWER_MESSAGE,
       toolSteps: toolsUsed.length,

@@ -19,6 +19,7 @@ import { VulnCveRepository } from '../vuln-monitor/repositories/vuln-cve.reposit
 import { PrismaService } from '../../shared/database/prisma.service';
 import { SecretsModule } from '../../shared/secret-store/secrets.module';
 import { AiConfigService } from './ai-config.service';
+import { ModelCapabilityService } from './capability/model-capability.service';
 
 @Module({
   imports: [DatabaseModule, SecretsModule, VulnMonitorModule],
@@ -27,6 +28,7 @@ import { AiConfigService } from './ai-config.service';
     AiChatService,
     AiConfigService,
     OllamaChatProvider,
+    ModelCapabilityService,
     OllamaEmbeddingsProvider,
     VectorRepository,
     SearchIndexBootstrap,
