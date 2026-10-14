@@ -44,8 +44,46 @@ export interface ContextSourcesPage {
   totalPages: number;
 }
 
+export interface LlmMessage {
+  role: 'system' | 'user' | 'assistant';
+  content: string;
+}
+
+export interface ToolDefinition {
+  name: string;
+  description: string;
+  /** JSON Schema (object type) describing the tool arguments. */
+  parameters: Record<string, unknown>;
+}
+
+export interface ToolCall {
+  name: string;
+  arguments: Record<string, unknown>;
+}
+
+export interface ChatResult {
+  content: string;
+  toolCalls?: ToolCall[];
+}
+
+export type ChatVia = 'tools' | 'router' | 'retrieve';
+
+export type DegradedReason =
+  | 'model_without_tools'
+  | 'no_tool_calls'
+  | 'orchestrator_error';
+
+/** Additive response metadata; clients that do not know it ignore it. */
+export interface AskMeta {
+  via: ChatVia;
+  degraded: boolean;
+  reason?: DegradedReason;
+  tools?: string[];
+}
+
 export interface AskResponse {
   response: string;
   conversationId: number;
   timestamp: string;
+  meta?: AskMeta;
 }
