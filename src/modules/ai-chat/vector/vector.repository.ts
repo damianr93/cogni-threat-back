@@ -163,6 +163,8 @@ export class VectorRepository implements OnModuleInit {
     k: number;
     categories?: string[];
     sources?: string[];
+    /** Sources starting with any of these prefixes are left out. */
+    excludeSourcePrefixes?: string[];
   }): Promise<VectorChunk[]> {
     const client = await this.pool.connect();
     try {
@@ -177,6 +179,14 @@ export class VectorRepository implements OnModuleInit {
       if (opts.sources && opts.sources.length > 0) {
         params.push(opts.sources);
         filters.push(`source = ANY($${params.length})`);
+      }
+      if (opts.excludeSourcePrefixes && opts.excludeSourcePrefixes.length > 0) {
+        params.push(
+          opts.excludeSourcePrefixes.map(
+            (prefix) => `${prefix.replace(/[\\%_]/g, '\\$&')}%`,
+          ),
+        );
+        filters.push(`NOT (source LIKE ANY($${params.length}))`);
       }
 
       const where = filters.length > 0 ? `WHERE ${filters.join(' AND ')}` : '';

@@ -5,9 +5,11 @@ describe('buildChatTools', () => {
   const tools = buildChatTools({
     cves: {},
     prisma: {},
+    vectors: {},
+    embeddings: {},
   } as never);
 
-  it('registers the CVE, ransomware and actor tools exactly once', () => {
+  it('registers the CVE, ransomware, actor and semantic tools exactly once', () => {
     expect(tools.map((t) => t.name)).toEqual([
       'search_cves',
       'get_cve',
@@ -15,6 +17,7 @@ describe('buildChatTools', () => {
       'search_ransomware_victims',
       'get_ransomware_group',
       'search_actors',
+      'semantic_search',
     ]);
   });
 
