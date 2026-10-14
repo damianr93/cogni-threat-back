@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
+import { createHash } from 'crypto';
 import { firstValueFrom } from 'rxjs';
 import { BaseCollector, SyncResult } from './base.collector';
 import { VulnCveRepository } from '../repositories/vuln-cve.repository';
@@ -10,11 +11,24 @@ import { NVD_MAX_WINDOW_DAYS, splitDateRange } from '../utils/date-range.util';
 const NVD_BASE = 'https://services.nvd.nist.gov/rest/json/cves/2.0';
 const RESULTS_PER_PAGE = 2000;
 const MAX_RETRIES = 3;
+/** NVD's unauthenticated ceiling is 5 requests per rolling 30s window. */
+const PUBLIC_RATE_DELAY_MS = 6000;
+/** How long a rejected key stays ignored before it is tried again. */
+const REJECTED_KEY_COOLDOWN_MS = 60 * 60 * 1000;
+
+function hashKey(key: string): string {
+  return createHash('sha256').update(key).digest('hex');
+}
 
 @Injectable()
 export class NvdCollector extends BaseCollector {
   readonly source = 'nvd';
   private readonly logger = new Logger(NvdCollector.name);
+  /**
+   * Set once NVD rejects the configured key. Only a hash is kept, never the
+   * secret. Cleared when the key changes or after the cool-down elapses.
+   */
+  private rejectedKey: { hash: string; at: number } | null = null;
 
   constructor(
     private readonly http: HttpService,
@@ -34,7 +48,8 @@ export class NvdCollector extends BaseCollector {
     const startDate = lastSync ?? this.defaultSince();
     const endDate = until ?? new Date();
     const apiKey = await this.secrets.get('nvd_api_key');
-    const delay = apiKey ? 700 : 6000;
+    this.resetRejectedKeyIfStale(apiKey);
+    const delay = apiKey && !this.rejectedKey ? 700 : PUBLIC_RATE_DELAY_MS;
     const chunks = splitDateRange(startDate, endDate, NVD_MAX_WINDOW_DAYS);
 
     this.logger.log(
@@ -138,7 +153,13 @@ export class NvdCollector extends BaseCollector {
         }
 
         startIndex += RESULTS_PER_PAGE;
-        if (startIndex < totalResults) await this.sleep(delay);
+        // Unauthenticated callers get 5 requests per 30s instead of 50, so
+        // pacing has to widen once the key is dropped or every page 403s.
+        if (startIndex < totalResults) {
+          await this.sleep(
+            this.rejectedKey ? Math.max(delay, PUBLIC_RATE_DELAY_MS) : delay,
+          );
+        }
       } while (startIndex < totalResults);
 
       return { newItems, updatedItems, errors, failed: false };
@@ -164,17 +185,38 @@ export class NvdCollector extends BaseCollector {
       startIndex: String(startIndex),
     };
 
-    const headers: Record<string, string> = {};
-    if (apiKey) headers['apiKey'] = apiKey;
-
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      const headers: Record<string, string> = {};
+      const sentWithKey = Boolean(apiKey) && !this.rejectedKey;
+      if (sentWithKey) headers['apiKey'] = apiKey as string;
+
       try {
         const res = await firstValueFrom(
           this.http.get(NVD_BASE, { params, headers, timeout: 60000 }),
         );
         return res.data;
-      } catch (err: any) {
-        const status = err?.response?.status;
+      } catch (err: unknown) {
+        const status = (err as { response?: { status?: number } })?.response
+          ?.status;
+
+        // NVD answers an invalid or expired apiKey with 404, not 401 or 403,
+        // which looks like a bad path. The unauthenticated endpoint serves the
+        // same data, so drop the key and keep collecting.
+        if (status === 404 && sentWithKey) {
+          this.rejectedKey = {
+            hash: hashKey(apiKey as string),
+            at: Date.now(),
+          };
+          this.logger.error(
+            'NVD rejected the configured API key (404). Continuing without it, ' +
+              'limited to 5 requests per 30s. Check nvd_api_key in the admin panel.',
+          );
+          // The keyless retry is not a failed attempt; rejectedKey is now set,
+          // so this branch cannot run twice for the same page.
+          attempt--;
+          continue;
+        }
+
         if ((status === 403 || status === 429) && attempt < MAX_RETRIES) {
           this.logger.warn(
             `NVD rate limit (${status}), retry ${attempt}/${MAX_RETRIES} in 30s`,
@@ -219,6 +261,14 @@ export class NvdCollector extends BaseCollector {
       references: refs.length > 0 ? refs : null,
       rawNvd: cve,
     };
+  }
+
+  private resetRejectedKeyIfStale(apiKey: string | undefined): void {
+    if (!this.rejectedKey) return;
+    const keyChanged = !apiKey || hashKey(apiKey) !== this.rejectedKey.hash;
+    const expired =
+      Date.now() - this.rejectedKey.at >= REJECTED_KEY_COOLDOWN_MS;
+    if (keyChanged || expired) this.rejectedKey = null;
   }
 
   private defaultSince(): Date {
