@@ -105,6 +105,13 @@ export const envs = {
   // request en hardware de self-host típico (laptop, single-GPU local). Con
   // más VRAM disponible, subilo desde el panel admin sin reiniciar.
   RAG_CHAT_NUM_CTX: get('RAG_CHAT_NUM_CTX').default('8192').asIntPositive(),
+  // Chat strategy: 'retrieve' (embed + generate) or 'tools' (tool-calling loop).
+  // Read as a plain string so an invalid value degrades to 'retrieve' with a
+  // warning instead of crashing at boot (see AiConfigService).
+  RAG_CHAT_MODE: get('RAG_CHAT_MODE').default('retrieve').asString(),
+  RAG_CHAT_MAX_TOOL_STEPS: get('RAG_CHAT_MAX_TOOL_STEPS')
+    .default('3')
+    .asIntPositive(),
   RAG_QUERY_MAX_CHARS: get('RAG_QUERY_MAX_CHARS')
     .default('3500')
     .asIntPositive(),

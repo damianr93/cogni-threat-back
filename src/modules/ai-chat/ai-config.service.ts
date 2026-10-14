@@ -1,6 +1,10 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { envs } from 'libs/config/src/envs';
 import { SecretsService } from '../../shared/secret-store/secrets.service';
+
+export type ChatMode = 'retrieve' | 'tools';
+
+const DEFAULT_CHAT_MODE: ChatMode = 'retrieve';
 
 export interface AiRuntimeConfig {
   ollamaUrl: string;
@@ -12,10 +16,15 @@ export interface AiRuntimeConfig {
   numCtx: number;
   queryMaxChars: number;
   queryInstruct: string;
+  chatMode: ChatMode;
+  maxToolSteps: number;
 }
 
 @Injectable()
 export class AiConfigService {
+  private readonly logger = new Logger(AiConfigService.name);
+  private warnedChatMode?: string;
+
   constructor(private readonly secrets: SecretsService) {}
 
   async getConfig(): Promise<AiRuntimeConfig> {
@@ -52,7 +61,22 @@ export class AiConfigService {
         'rag_query_instruct',
         envs.RAG_QUERY_INSTRUCT,
       ),
+      chatMode: this.resolveChatMode(envs.RAG_CHAT_MODE),
+      maxToolSteps: envs.RAG_CHAT_MAX_TOOL_STEPS,
     };
+  }
+
+  /** Env-only switch; unknown values resolve to the default and warn once per value. */
+  private resolveChatMode(raw: string): ChatMode {
+    const value = raw?.trim().toLowerCase();
+    if (value === 'retrieve' || value === 'tools') return value;
+    if (this.warnedChatMode !== raw) {
+      this.warnedChatMode = raw;
+      this.logger.warn(
+        `Invalid RAG_CHAT_MODE "${raw}"; using "${DEFAULT_CHAT_MODE}"`,
+      );
+    }
+    return DEFAULT_CHAT_MODE;
   }
 
   private async getString(
