@@ -36,9 +36,18 @@ import { AiConfigService } from './ai-config.service';
     {
       provide: CHAT_TOOLS,
       // Later slices add their repositories to `inject` and `ChatToolDeps`.
-      useFactory: (cves: VulnCveRepository, prisma: PrismaService) =>
-        buildChatTools({ cves, prisma }),
-      inject: [VulnCveRepository, PrismaService],
+      useFactory: (
+        cves: VulnCveRepository,
+        prisma: PrismaService,
+        vectors: VectorRepository,
+        embeddings: OllamaEmbeddingsProvider,
+      ) => buildChatTools({ cves, prisma, vectors, embeddings }),
+      inject: [
+        VulnCveRepository,
+        PrismaService,
+        VectorRepository,
+        OllamaEmbeddingsProvider,
+      ],
     },
     { provide: TOOL_EXECUTOR, useClass: ToolRegistry },
   ],
