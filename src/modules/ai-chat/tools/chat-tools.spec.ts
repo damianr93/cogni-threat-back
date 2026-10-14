@@ -9,7 +9,7 @@ describe('buildChatTools', () => {
     embeddings: {},
   } as never);
 
-  it('registers the CVE, ransomware, actor and semantic tools exactly once', () => {
+  it('registers the CVE, ransomware, actor, semantic and Telegram tools exactly once', () => {
     expect(tools.map((t) => t.name)).toEqual([
       'search_cves',
       'get_cve',
@@ -18,6 +18,7 @@ describe('buildChatTools', () => {
       'get_ransomware_group',
       'search_actors',
       'semantic_search',
+      'search_telegram_messages',
     ]);
   });
 

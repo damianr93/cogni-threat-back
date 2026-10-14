@@ -8,10 +8,14 @@ const list = (values: string[]) => `[${[...values].sort().join(',')}]`;
  * required fields). Returns human-readable mismatches; empty means parity.
  */
 export function jsonSchemaMismatches(tool: ChatTool): string[] {
-  if (!(tool.schema instanceof z.ZodObject)) {
+  let schema: z.ZodTypeAny = tool.schema;
+  // `.refine()` wraps the object in ZodEffects; compare against the inner shape.
+  while (schema instanceof z.ZodEffects)
+    schema = schema.innerType() as z.ZodTypeAny;
+  if (!(schema instanceof z.ZodObject)) {
     return [`${tool.name}: schema must be a z.object`];
   }
-  const shape = tool.schema.shape as Record<string, z.ZodTypeAny>;
+  const shape = schema.shape as Record<string, z.ZodTypeAny>;
   const zodKeys = Object.keys(shape);
   const zodRequired = zodKeys.filter((k) => !shape[k].isOptional());
   const jsonKeys = Object.keys(tool.parameters.properties);
