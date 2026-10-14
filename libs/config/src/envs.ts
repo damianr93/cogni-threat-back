@@ -105,23 +105,24 @@ export const envs = {
   // request en hardware de self-host típico (laptop, single-GPU local). Con
   // más VRAM disponible, subilo desde el panel admin sin reiniciar.
   RAG_CHAT_NUM_CTX: get('RAG_CHAT_NUM_CTX').default('8192').asIntPositive(),
-  // Chat strategy: 'retrieve' (embed + generate) or 'tools' (tool-calling loop).
-  // Read as a plain string so an invalid value degrades to 'retrieve' with a
-  // warning instead of crashing at boot (see AiConfigService).
-  RAG_CHAT_MODE: get('RAG_CHAT_MODE').default('retrieve').asString(),
+  // Chat strategy: 'tools' (tool-calling loop, default) or 'retrieve' (embed +
+  // generate). Read as a plain string so an invalid value degrades to the
+  // default with a warning instead of crashing at boot (see AiConfigService).
+  RAG_CHAT_MODE: get('RAG_CHAT_MODE').default('tools').asString(),
   RAG_CHAT_MAX_TOOL_STEPS: get('RAG_CHAT_MAX_TOOL_STEPS')
     .default('3')
     .asIntPositive(),
   // Embedding scope. Read as plain strings so an invalid value resolves to the
   // safest reduced scope with a warning instead of crashing at boot (see
-  // resolveEmbedScope). They default to 'all' so existing deployments keep
-  // embedding everything until the flags are set explicitly.
-  RAG_CVE_EMBED_MODE: get('RAG_CVE_EMBED_MODE').default('all').asString(),
+  // resolveEmbedScope). They default to the reduced scope: KEV CVEs only, no
+  // victims and no Telegram messages, since the chat tools query SQL for those.
+  // Set a flag to 'all' to embed that source again.
+  RAG_CVE_EMBED_MODE: get('RAG_CVE_EMBED_MODE').default('kev').asString(),
   RAG_RANSOMWARE_VICTIM_EMBED_MODE: get('RAG_RANSOMWARE_VICTIM_EMBED_MODE')
-    .default('all')
+    .default('none')
     .asString(),
   RAG_TELEGRAM_EMBED_MODE: get('RAG_TELEGRAM_EMBED_MODE')
-    .default('all')
+    .default('none')
     .asString(),
   RAG_QUERY_MAX_CHARS: get('RAG_QUERY_MAX_CHARS')
     .default('3500')

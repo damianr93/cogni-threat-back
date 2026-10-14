@@ -199,3 +199,44 @@ describe('VectorRepository.existingSources', () => {
     expect(client.query).not.toHaveBeenCalled();
   });
 });
+
+describe('VectorRepository.findTextBySources', () => {
+  function setup(rows: unknown[]) {
+    const client = {
+      query: jest.fn().mockResolvedValue({ rows }),
+      release: jest.fn(),
+    };
+    const repo = new VectorRepository();
+    (repo as unknown as { pool: unknown }).pool = {
+      connect: jest.fn().mockResolvedValue(client),
+    };
+    return { repo, client };
+  }
+
+  it('returns the first chunks of each source in chunk order', async () => {
+    const { repo, client } = setup([
+      { source: 's1', category: 'actors', text: 'one' },
+      { source: 's1', category: 'actors', text: 'two' },
+    ]);
+
+    const rows = await repo.findTextBySources(['s1', 's2'], 2);
+
+    expect(rows).toEqual([
+      { source: 's1', category: 'actors', text: 'one' },
+      { source: 's1', category: 'actors', text: 'two' },
+    ]);
+    const [sql, params] = client.query.mock.calls[0] as [string, unknown[]];
+    expect(sql).toContain('source = ANY($1)');
+    expect(sql).toContain('PARTITION BY source ORDER BY chunk_index');
+    expect(sql).toContain('<= $2');
+    expect(params).toEqual([['s1', 's2'], 2]);
+    expect(client.release).toHaveBeenCalled();
+  });
+
+  it('skips the query for an empty selection', async () => {
+    const { repo, client } = setup([]);
+
+    expect(await repo.findTextBySources([])).toEqual([]);
+    expect(client.query).not.toHaveBeenCalled();
+  });
+});

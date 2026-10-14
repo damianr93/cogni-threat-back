@@ -17,6 +17,7 @@ describe('ChatOrchestrator', () => {
     maxToolSteps?: number;
     numCtx?: number;
     tools?: ToolExecutor;
+    prefetch?: jest.Mock;
   }) {
     const chatWithTools = jest.fn();
     const tools: ToolExecutor = opts?.tools ?? {
@@ -39,12 +40,14 @@ describe('ChatOrchestrator', () => {
       }),
     };
     jest.spyOn(Logger.prototype, 'log').mockImplementation(() => undefined);
+    const prefetch = opts?.prefetch ?? jest.fn().mockResolvedValue('');
     const orchestrator = new ChatOrchestrator(
       { chatWithTools } as never,
       tools,
       config as never,
+      { prefetch } as never,
     );
-    return { orchestrator, chatWithTools, tools, config };
+    return { orchestrator, chatWithTools, tools, config, prefetch };
   }
 
   afterEach(() => jest.restoreAllMocks());
@@ -388,6 +391,104 @@ describe('ChatOrchestrator', () => {
         ContextBudgetConfigError,
       );
       expect(chatWithTools).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('selected source prefetch', () => {
+    const selected = {
+      ...chitchat,
+      sources: ['vuln-monitor:cve:CVE-2024-0001'],
+      categories: ['vuln-monitor'],
+    };
+
+    it('puts the prefetched block in a CONTEXTO section before the question', async () => {
+      const prefetch = jest.fn().mockResolvedValue('[vuln-monitor] block');
+      const { orchestrator, chatWithTools } = makeOrchestrator({ prefetch });
+      chatWithTools.mockResolvedValueOnce({ content: 'Respuesta.' });
+
+      await orchestrator.ask(selected);
+
+      const [turn] = chatWithTools.mock.calls[0];
+      expect(turn[turn.length - 1]).toEqual({
+        role: 'user',
+        content: expect.stringMatching(
+          /^CONTEXTO[^\n]*:\n\[vuln-monitor\] block\n\nPREGUNTA:\nhola$/,
+        ),
+      });
+    });
+
+    it('accepts a direct answer from the selected context instead of routing', async () => {
+      const prefetch = jest.fn().mockResolvedValue('[vuln-monitor] block');
+      const { orchestrator, chatWithTools } = makeOrchestrator({ prefetch });
+      chatWithTools.mockResolvedValueOnce({ content: 'Según el contexto.' });
+
+      await expect(
+        orchestrator.ask({
+          ...input,
+          sources: ['vuln-monitor:cve:CVE-2024-3400'],
+        }),
+      ).resolves.toMatchObject({
+        content: 'Según el contexto.',
+        toolSteps: 0,
+      });
+    });
+
+    it('runs prefetch tools with the UI scope and a positive budget', async () => {
+      const prefetch = jest.fn().mockResolvedValue('');
+      const { orchestrator, chatWithTools, tools } = makeOrchestrator({
+        prefetch,
+      });
+      chatWithTools.mockResolvedValueOnce({ content: 'Hola.' });
+
+      await orchestrator.ask(selected);
+
+      const [sources, runTool, maxChars] = prefetch.mock.calls[0];
+      expect(sources).toEqual(['vuln-monitor:cve:CVE-2024-0001']);
+      expect(maxChars).toBeGreaterThan(1000);
+      await runTool({ name: 'get_cve', arguments: { cveId: 'CVE-2024-0001' } });
+      expect(tools.execute).toHaveBeenCalledWith(
+        { name: 'get_cve', arguments: { cveId: 'CVE-2024-0001' } },
+        expect.objectContaining({
+          categories: ['vuln-monitor'],
+          sources: ['vuln-monitor:cve:CVE-2024-0001'],
+        }),
+      );
+    });
+
+    it('leaves the question untouched without sources, with an empty block or on failure', async () => {
+      const failing = jest.fn().mockRejectedValue(new Error('boom'));
+      const empty = jest.fn().mockResolvedValue('');
+      const none = jest.fn().mockResolvedValue('block');
+      for (const [prefetch, sources] of [
+        [failing, selected.sources],
+        [empty, selected.sources],
+        [none, undefined],
+      ] as const) {
+        const { orchestrator, chatWithTools } = makeOrchestrator({ prefetch });
+        chatWithTools.mockResolvedValueOnce({ content: 'Hola.' });
+
+        await orchestrator.ask({ ...selected, sources: sources as string[] });
+
+        const [turn] = chatWithTools.mock.calls[0];
+        expect(turn[turn.length - 1]).toEqual({
+          role: 'user',
+          content: 'hola',
+        });
+      }
+      expect(none).not.toHaveBeenCalled();
+    });
+
+    it('skips the prefetch when no context budget is left for it', async () => {
+      const prefetch = jest.fn().mockResolvedValue('block');
+      const { orchestrator, chatWithTools } = makeOrchestrator({
+        prefetch,
+        numCtx: 2600,
+      });
+      chatWithTools.mockResolvedValueOnce({ content: 'Hola.' });
+
+      await orchestrator.ask(selected);
+
+      expect(prefetch).not.toHaveBeenCalled();
     });
   });
 });
