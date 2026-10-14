@@ -1,13 +1,18 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
+import { Readable } from 'stream';
 import * as zlib from 'zlib';
 import * as readline from 'readline';
 import { BaseCollector, SyncResult } from './base.collector';
 import { VulnCveRepository } from '../repositories/vuln-cve.repository';
 import { SyncStateRepository } from '../repositories/sync-state.repository';
 
+type HttpErrorLike = { response?: { status?: number } };
+
 const EPSS_BASE = 'https://epss.empiricalsecurity.com';
+/** How many days back to look before giving up on a published score file. */
+const EPSS_MAX_LOOKBACK_DAYS = 5;
 const BATCH_SIZE = 1000;
 
 @Injectable()
@@ -27,14 +32,9 @@ export class EpssCollector extends BaseCollector {
     const errors: string[] = [];
     let updatedItems = 0;
 
-    const today = new Date().toISOString().slice(0, 10);
-    const url = `${EPSS_BASE}/epss_scores-${today}.csv.gz`;
-
     try {
-      this.logger.log(`Downloading EPSS scores for ${today}...`);
-      const response = await firstValueFrom(
-        this.http.get(url, { responseType: 'stream', timeout: 120000 }),
-      );
+      const { response, day } = await this.fetchLatestScores();
+      this.logger.log(`Downloading EPSS scores for ${day}...`);
 
       const gunzip = zlib.createGunzip();
       const rl = readline.createInterface({
@@ -74,13 +74,6 @@ export class EpssCollector extends BaseCollector {
       await this.syncState.markSuccess('epss', updatedItems);
       this.logger.log(`EPSS sync done — updated scores: ${updatedItems}`);
     } catch (err: any) {
-      if (err?.response?.status === 404) {
-        this.logger.warn(`EPSS file not yet available for ${today}`);
-        return this.buildResult({
-          source: this.source,
-          errors: [`EPSS file not available for ${today}`],
-        });
-      }
       const msg = `EPSS sync failed: ${err.message}`;
       this.logger.error(msg);
       errors.push(msg);
@@ -93,5 +86,46 @@ export class EpssCollector extends BaseCollector {
       updatedItems,
       errors,
     });
+  }
+
+  /**
+   * Fetches the most recent published score file.
+   *
+   * The daily export lands some hours into the UTC day, and the bucket answers
+   * a not-yet-published object with 403 rather than 404. Walk backwards until
+   * a day responds: older scores are better than none.
+   */
+  private async fetchLatestScores(): Promise<{
+    response: { data: Readable };
+    day: string;
+  }> {
+    let lastErr: unknown;
+
+    for (let back = 0; back <= EPSS_MAX_LOOKBACK_DAYS; back++) {
+      const day = new Date(Date.now() - back * 86_400_000)
+        .toISOString()
+        .slice(0, 10);
+      try {
+        const response = await firstValueFrom(
+          this.http.get<Readable>(`${EPSS_BASE}/epss_scores-${day}.csv.gz`, {
+            responseType: 'stream',
+            timeout: 120000,
+          }),
+        );
+        if (back > 0) {
+          this.logger.warn(
+            `EPSS file for today is not published yet, using ${day}`,
+          );
+        }
+        return { response, day };
+      } catch (err: unknown) {
+        const status = (err as HttpErrorLike)?.response?.status;
+        // 403 and 404 both mean "not published yet" for this bucket.
+        if (status !== 403 && status !== 404) throw err;
+        lastErr = err;
+      }
+    }
+
+    throw lastErr;
   }
 }
