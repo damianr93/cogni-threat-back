@@ -484,6 +484,7 @@ model TelegramChannelMessage {
   updatedAt   DateTime @updatedAt
 
   @@index([channelName, date])
+  @@index([content(ops: raw("gin_trgm_ops"))], type: Gin, map: "telegram_msg_content_trgm_idx")
   @@map("telegram_channel_messages")
 }
 
@@ -552,6 +553,7 @@ model VulnCve {
   @@index([isKev])
   @@index([modifiedAt(sort: Desc)])
   @@index([cvssScore(sort: Desc)])
+  @@index([id(ops: raw("gin_trgm_ops"))], type: Gin, map: "vuln_cves_id_trgm_idx")
   @@index([epssScore(sort: Desc)])
   @@index([cveId])
   @@index([sources], type: Gin)

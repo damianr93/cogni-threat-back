@@ -5,6 +5,7 @@ import { AiChatService } from './ai-chat.service';
 import { OllamaChatProvider } from './providers/ollama-chat.provider';
 import { OllamaEmbeddingsProvider } from './providers/ollama-embeddings.provider';
 import { VectorRepository } from './vector/vector.repository';
+import { SearchIndexBootstrap } from './vector/search-index.bootstrap';
 import { IngestionService } from './ingestion/ingestion.service';
 import { SyncSchedulerService } from './ingestion/sync-scheduler.service';
 import { EmbeddingSyncControlService } from './ingestion/embedding-sync-control.service';
@@ -28,6 +29,7 @@ import { AiConfigService } from './ai-config.service';
     OllamaChatProvider,
     OllamaEmbeddingsProvider,
     VectorRepository,
+    SearchIndexBootstrap,
     EmbeddingSyncControlService,
     IngestionService,
     SyncSchedulerService,
