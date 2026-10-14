@@ -112,6 +112,17 @@ export const envs = {
   RAG_CHAT_MAX_TOOL_STEPS: get('RAG_CHAT_MAX_TOOL_STEPS')
     .default('3')
     .asIntPositive(),
+  // Embedding scope. Read as plain strings so an invalid value resolves to the
+  // safest reduced scope with a warning instead of crashing at boot (see
+  // resolveEmbedScope). They default to 'all' so existing deployments keep
+  // embedding everything until the flags are set explicitly.
+  RAG_CVE_EMBED_MODE: get('RAG_CVE_EMBED_MODE').default('all').asString(),
+  RAG_RANSOMWARE_VICTIM_EMBED_MODE: get('RAG_RANSOMWARE_VICTIM_EMBED_MODE')
+    .default('all')
+    .asString(),
+  RAG_TELEGRAM_EMBED_MODE: get('RAG_TELEGRAM_EMBED_MODE')
+    .default('all')
+    .asString(),
   RAG_QUERY_MAX_CHARS: get('RAG_QUERY_MAX_CHARS')
     .default('3500')
     .asIntPositive(),

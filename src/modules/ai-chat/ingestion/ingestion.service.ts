@@ -1,4 +1,6 @@
 import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
+import { envs } from 'libs/config/src/envs';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../../shared/database/prisma.service';
 import { OllamaEmbeddingsProvider } from '../providers/ollama-embeddings.provider';
 import { VectorRepository } from '../vector/vector.repository';
@@ -11,6 +13,7 @@ import {
   sourceId,
 } from './entity-serializers';
 import { EmbeddingSyncControlService } from './embedding-sync-control.service';
+import { resolveEmbedScope } from './embed-scope';
 
 const BATCH_SIZE = 50;
 // Ollama procesa un modelo a la vez por GPU — este delay entre lotes le deja
@@ -126,6 +129,10 @@ export class IngestionService implements OnApplicationBootstrap {
   }
 
   async ingestRansomwareVictims(): Promise<void> {
+    if (resolveEmbedScope(envs).victims === 'none') {
+      this.logGated('ransomware:victims', 'RAG_RANSOMWARE_VICTIM_EMBED_MODE');
+      return;
+    }
     const since = await this.getLastSyncAt('ransomware:victims');
     const records = await this.prisma.ransomwareVictimsData.findMany({
       where: since ? { updatedAt: { gt: since } } : undefined,
@@ -169,9 +176,23 @@ export class IngestionService implements OnApplicationBootstrap {
   }
 
   async ingestVulnCves(): Promise<void> {
-    const since = await this.getLastSyncAt('vuln-monitor:cves');
+    const mode = resolveEmbedScope(envs).cve;
+    if (mode === 'none') {
+      this.logGated('vuln-monitor:cves', 'RAG_CVE_EMBED_MODE');
+      return;
+    }
+    // Reduced modes get their own watermark key. `all` keeps the original key,
+    // so deploying the flags never re-embeds the whole catalogue, while widening
+    // the scope (kev -> all) resumes from the last `all` run and fills the gap.
+    const syncKey =
+      mode === 'all' ? 'vuln-monitor:cves' : `vuln-monitor:cves@${mode}`;
+    const since = await this.getLastSyncAt(syncKey);
+    const where: Prisma.VulnCveWhereInput = {
+      ...(mode === 'kev' ? { isKev: true } : {}),
+      ...(since ? { updatedAt: { gt: since } } : {}),
+    };
     const records = await this.prisma.vulnCve.findMany({
-      where: since ? { updatedAt: { gt: since } } : undefined,
+      where: Object.keys(where).length > 0 ? where : undefined,
       orderBy: { updatedAt: 'asc' },
     });
 
@@ -205,7 +226,7 @@ export class IngestionService implements OnApplicationBootstrap {
       await delay(INTER_BATCH_DELAY_MS);
     }
 
-    await this.upsertSyncState('vuln-monitor:cves', indexed);
+    await this.upsertSyncState(syncKey, indexed);
     this.logger.log(`vuln-monitor:cves — ${indexed} CVEs indexados`);
   }
 
@@ -250,6 +271,10 @@ export class IngestionService implements OnApplicationBootstrap {
   }
 
   async ingestTelegramMessages(): Promise<void> {
+    if (resolveEmbedScope(envs).telegram === 'none') {
+      this.logGated('telegram:messages', 'RAG_TELEGRAM_EMBED_MODE');
+      return;
+    }
     const since = await this.getLastSyncAt('telegram:messages');
     const records = await this.prisma.telegramChannelMessage.findMany({
       where: since ? { createdAt: { gt: since } } : undefined,
@@ -289,6 +314,12 @@ export class IngestionService implements OnApplicationBootstrap {
 
     await this.upsertSyncState('telegram:messages', indexed);
     this.logger.log(`telegram:messages — ${indexed} mensajes indexados`);
+  }
+
+  private logGated(source: string, flag: string): void {
+    this.logger.log(
+      `${source} — gated by ${flag}; skipping without loading source rows`,
+    );
   }
 
   // ─── Sync state helpers ────────────────────────────────────────────────────
