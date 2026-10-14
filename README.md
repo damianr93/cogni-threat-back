@@ -42,6 +42,11 @@ Configurable from the admin panel:
 
 OpenAI-compatible APIs are not supported yet. Adding them should be done as an explicit provider option (`ollama` / `openai`) with separate API-key, chat-model, embedding-model, and base-URL settings.
 
+### AI chat docs
+
+* [docs/ai-chat-tools.md](docs/ai-chat-tools.md): chat modes, SQL tools, embedding scope flags, fallback chain and `/ai/health`.
+* [docs/ai-vector-purge-runbook.md](docs/ai-vector-purge-runbook.md): one-time purge of the vector index after reducing the embedding scope.
+
 ## Tecnologías utilizadas
 
 * NestJS
