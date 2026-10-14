@@ -58,3 +58,100 @@ describe('VulnCveRepository.bulkUpdateEpss', () => {
     expect(percentiles).toEqual([0.9, 0.2]);
   });
 });
+
+describe('VulnCveRepository.upsert severity merge', () => {
+  function makeUpsertRepo(existing: Record<string, unknown> | null) {
+    const update = jest.fn().mockResolvedValue({});
+    const prisma = {
+      vulnCve: {
+        findFirst: jest.fn().mockResolvedValue(
+          existing && {
+            id: 'CVE-2024-0001',
+            sources: ['nvd'],
+            isKev: false,
+            modifiedAt: null,
+            description: null,
+            title: null,
+            cveId: 'CVE-2024-0001',
+            cvssScore: null,
+            cvssVector: null,
+            cvssVersion: null,
+            severity: null,
+            epssScore: null,
+            epssPercentile: null,
+            ...existing,
+          },
+        ),
+        update,
+        create: jest.fn().mockResolvedValue({}),
+      },
+    };
+    const repo = new VulnCveRepository(prisma as never);
+    const severityWritten = () => update.mock.calls[0][0].data.severity;
+    return { repo, update, severityWritten };
+  }
+
+  const incoming = (extra: Record<string, unknown>) => ({
+    id: 'CVE-2024-0001',
+    cveId: 'CVE-2024-0001',
+    sources: ['osv'],
+    ...extra,
+  });
+
+  it('keeps the existing severity when the merged score is null', async () => {
+    const { repo, severityWritten } = makeUpsertRepo({ severity: 'HIGH' });
+
+    await repo.upsert(incoming({ cvssScore: null, severity: null }));
+
+    expect(severityWritten()).toBe('HIGH');
+  });
+
+  it('keeps the existing severity over an incoming label when the merged score is null', async () => {
+    const { repo, severityWritten } = makeUpsertRepo({ severity: 'HIGH' });
+
+    await repo.upsert(incoming({ cvssScore: null, severity: 'LOW' }));
+
+    expect(severityWritten()).toBe('HIGH');
+  });
+
+  it('adopts a label-only incoming severity when none exists and the merged score is null', async () => {
+    const { repo, severityWritten } = makeUpsertRepo({ severity: null });
+
+    await repo.upsert(incoming({ cvssScore: null, severity: 'MEDIUM' }));
+
+    expect(severityWritten()).toBe('MEDIUM');
+  });
+
+  it('follows the incoming severity when its score wins the merge', async () => {
+    const { repo, severityWritten } = makeUpsertRepo({
+      cvssScore: 5,
+      severity: 'MEDIUM',
+    });
+
+    await repo.upsert(incoming({ cvssScore: 9.8, severity: 'CRITICAL' }));
+
+    expect(severityWritten()).toBe('CRITICAL');
+  });
+
+  it('keeps the existing severity when the existing score wins the merge', async () => {
+    const { repo, severityWritten } = makeUpsertRepo({
+      cvssScore: 8,
+      severity: 'HIGH',
+    });
+
+    await repo.upsert(incoming({ cvssScore: 3, severity: 'LOW' }));
+
+    expect(severityWritten()).toBe('HIGH');
+  });
+
+  it('leaves severity null when neither side supplies one', async () => {
+    const { repo, severityWritten } = makeUpsertRepo({
+      cvssScore: 7.5,
+      severity: null,
+    });
+
+    await repo.upsert(incoming({ cvssScore: null, severity: null }));
+
+    expect(severityWritten()).toBeNull();
+  });
+});
