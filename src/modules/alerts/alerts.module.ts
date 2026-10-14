@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { AlertsController } from './alerts.controller';
 import { AlertsService } from './alerts.service';
+import { AlertInboxService } from './alert-inbox.service';
 import { AlertProcessorService } from './alert-processor.service';
 import { TelegramService } from './telegram.service';
 import { TelegramChannelService } from './telegram-channel.service';
@@ -14,6 +15,7 @@ import { VulnWatchProfilesController } from './vuln/vuln-watch-profiles.controll
   controllers: [AlertsController, VulnWatchProfilesController],
   providers: [
     AlertsService,
+    AlertInboxService,
     AlertProcessorService,
     TelegramService,
     TelegramChannelService,
