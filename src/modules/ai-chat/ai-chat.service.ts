@@ -3,6 +3,10 @@ import { PrismaService } from '../../shared/database/prisma.service';
 import { RagService } from './rag/rag.service';
 import { VectorRepository } from './vector/vector.repository';
 import { AiConfigService } from './ai-config.service';
+import {
+  ModelCapabilityService,
+  type ToolSupport,
+} from './capability/model-capability.service';
 import { MOCK_CONTEXT_CATEGORIES } from './mocks/mock-context-categories';
 import { deriveLabel } from './ingestion/entity-serializers';
 import {
@@ -19,10 +23,23 @@ export class AiChatService {
     private readonly rag: RagService,
     private readonly vectorRepo: VectorRepository,
     private readonly aiConfig: AiConfigService,
+    private readonly capability: ModelCapabilityService,
   ) {}
 
   async getHealth() {
     const config = await this.aiConfig.getConfig();
+    // Retrieve mode never uses tools, so skip the /api/show probe (up to 5 s
+    // when Ollama is down) and report the capability as not checked.
+    const toolCalling: ToolSupport =
+      config.chatMode === 'tools'
+        ? await this.capability.getToolSupport()
+        : 'unknown';
+    const chatVia =
+      config.chatMode !== 'tools'
+        ? 'retrieve'
+        : toolCalling === 'unsupported'
+          ? 'router'
+          : 'tools';
     return {
       success: true,
       data: {
@@ -32,6 +49,11 @@ export class AiChatService {
         ollamaUrl: config.ollamaUrl,
         model: config.chatModel,
         embeddingModel: config.embeddingModel,
+        chatMode: config.chatMode,
+        toolCalling,
+        chatVia,
+        maxToolSteps: config.maxToolSteps,
+        numCtx: config.numCtx,
       },
     };
   }
