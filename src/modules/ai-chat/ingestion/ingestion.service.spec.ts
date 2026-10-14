@@ -244,3 +244,23 @@ describe('IngestionService embed scope gating', () => {
     expect(prisma.telegramChannelMessage.findMany).not.toHaveBeenCalled();
   });
 });
+
+describe('IngestionService.isRunning', () => {
+  it('is true only while ingestAll is in flight', async () => {
+    const { service, prisma } = build();
+    let release: (v: unknown[]) => void = () => undefined;
+    prisma.ransomwareGroupsData.findMany.mockReturnValue(
+      new Promise<unknown[]>((resolve) => {
+        release = resolve;
+      }),
+    );
+
+    expect(service.isRunning()).toBe(false);
+    const run = service.ingestAll();
+    expect(service.isRunning()).toBe(true);
+    release([]);
+    await run;
+
+    expect(service.isRunning()).toBe(false);
+  });
+});

@@ -1,5 +1,5 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
-import { Pool } from 'pg';
+import { Pool, PoolClient } from 'pg';
 import { envs } from 'libs/config/src/envs';
 
 export interface VectorChunk {
@@ -7,6 +7,15 @@ export interface VectorChunk {
   source: string;
   category: string;
   distance: number;
+}
+
+export interface VectorSizeReport {
+  totalBytes: number;
+  tableBytes: number;
+  toastBytes: number;
+  indexBytes: number;
+  /** Average embedding size from a 1% sample; null while the table is empty. */
+  avgEmbeddingBytes: number | null;
 }
 
 export interface SourceItem {
@@ -335,5 +344,48 @@ export class VectorRepository implements OnModuleInit {
     } finally {
       client.release();
     }
+  }
+
+  /** Runs `fn` with a dedicated pooled client (e.g. for a transaction). */
+  async withClient<T>(fn: (client: PoolClient) => Promise<T>): Promise<T> {
+    const client = await this.pool.connect();
+    try {
+      return await fn(client);
+    } finally {
+      client.release();
+    }
+  }
+
+  async getSizeReport(): Promise<VectorSizeReport> {
+    return this.withClient(async (client) => {
+      const result = await client.query<{
+        total_bytes: string;
+        table_bytes: string;
+        toast_bytes: string;
+        index_bytes: string;
+        avg_embedding_bytes: string | null;
+      }>(
+        `SELECT pg_total_relation_size(c.oid) AS total_bytes,
+                pg_relation_size(c.oid) AS table_bytes,
+                CASE WHEN c.reltoastrelid = 0 THEN 0
+                     ELSE pg_total_relation_size(c.reltoastrelid) END AS toast_bytes,
+                pg_indexes_size(c.oid) AS index_bytes,
+                (SELECT AVG(pg_column_size(embedding))::bigint
+                   FROM ai_context_vectors TABLESAMPLE SYSTEM (1)) AS avg_embedding_bytes
+         FROM pg_class c
+         WHERE c.oid = 'ai_context_vectors'::regclass`,
+      );
+      const row = result.rows[0];
+      return {
+        totalBytes: Number(row.total_bytes),
+        tableBytes: Number(row.table_bytes),
+        toastBytes: Number(row.toast_bytes),
+        indexBytes: Number(row.index_bytes),
+        avgEmbeddingBytes:
+          row.avg_embedding_bytes === null
+            ? null
+            : Number(row.avg_embedding_bytes),
+      };
+    });
   }
 }

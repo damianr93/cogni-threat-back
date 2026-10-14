@@ -52,6 +52,11 @@ export class IngestionService implements OnApplicationBootstrap {
     }
   }
 
+  /** True while an `ingestAll` run is in flight (used to guard the purge). */
+  isRunning(): boolean {
+    return this.running;
+  }
+
   async ingestAll(): Promise<void> {
     if (!this.vectors.isReady()) {
       this.logger.warn('pgvector no disponible — ingesta omitida');
