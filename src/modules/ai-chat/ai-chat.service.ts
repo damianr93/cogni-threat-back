@@ -130,7 +130,7 @@ export class AiChatService {
       content: m.content,
     }));
 
-    const responseText = await this.rag.ask({
+    const { content: responseText, meta } = await this.rag.ask({
       question,
       history,
       categories,
@@ -162,6 +162,7 @@ export class AiChatService {
         response: responseText,
         conversationId,
         timestamp: assistantTs.toISOString(),
+        ...(meta && { meta }),
       },
     };
   }

@@ -1,6 +1,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { AiConfigService } from '../ai-config.service';
 import { fitContext } from './context-budget';
+import { detectIntents } from './router-intents';
 import { OllamaChatProvider } from '../providers/ollama-chat.provider';
 import {
   stripToolTags,
@@ -17,6 +18,17 @@ const FORCE_CLOSURE_PROMPT =
 
 export const NO_ANSWER_MESSAGE =
   'No pude generar una respuesta con los datos disponibles. Intenta reformular la pregunta.';
+
+/**
+ * The model answered a data question without calling any tool at step 1; the
+ * caller should route the question through the deterministic ChatRouter.
+ */
+export class NoToolCallsError extends Error {
+  constructor() {
+    super('Model returned no tool call for a data question');
+    this.name = 'NoToolCallsError';
+  }
+}
 
 /** Injection token for the tool registry the orchestrator drives. */
 export const TOOL_EXECUTOR = Symbol('TOOL_EXECUTOR');
@@ -99,6 +111,9 @@ export class ChatOrchestrator {
       context.maxResultChars = fit.resultCap;
       const response = await this.chat.chatWithTools(fit.messages, fit.tools);
       if (!response.toolCalls?.length) {
+        if (toolsUsed.length === 0 && detectIntents(input.question).length) {
+          throw new NoToolCallsError();
+        }
         const text = stripToolTags(response.content);
         if (text) {
           return {

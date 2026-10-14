@@ -4,7 +4,13 @@ import { OllamaEmbeddingsProvider } from '../providers/ollama-embeddings.provide
 import { VectorRepository } from '../vector/vector.repository';
 import { AiConfigService, AiRuntimeConfig } from '../ai-config.service';
 import { EmbeddingSyncControlService } from '../ingestion/embedding-sync-control.service';
-import { ChatOrchestrator } from './chat-orchestrator';
+import { ModelCapabilityService } from '../capability/model-capability.service';
+import { ToolsNotSupportedError } from '../providers/ollama-chat.provider';
+import { AskMeta, DegradedReason } from '../types/chat.types';
+import { ChatOrchestrator, NoToolCallsError } from './chat-orchestrator';
+import { ChatRouter } from './chat-router';
+import { ContextBudgetConfigError } from './context-budget';
+import { degradedNotice } from './degraded-notice';
 
 const SYSTEM_PROMPT = `Eres un asistente especializado en inteligencia de amenazas cibernéticas.
 Tienes acceso a datos actualizados de:
@@ -21,6 +27,25 @@ Sé conciso: responde lo que se pregunta sin agregar información innecesaria.`;
 
 const MAX_HISTORY = 6;
 
+export interface AskOptions {
+  question: string;
+  history: Array<{ role: string; content: string }>;
+  categories?: string[];
+  sources?: string[];
+}
+
+/** `meta` is omitted in retrieve mode so the default response is unchanged. */
+export interface AskResult {
+  content: string;
+  meta?: AskMeta;
+}
+
+function degradedReason(err: unknown): DegradedReason {
+  if (err instanceof ToolsNotSupportedError) return 'model_without_tools';
+  if (err instanceof NoToolCallsError) return 'no_tool_calls';
+  return 'orchestrator_error';
+}
+
 @Injectable()
 export class RagService {
   private readonly logger = new Logger(RagService.name);
@@ -32,47 +57,78 @@ export class RagService {
     private readonly config: AiConfigService,
     private readonly embeddingSyncControl: EmbeddingSyncControlService,
     private readonly orchestrator: ChatOrchestrator,
+    private readonly router: ChatRouter,
+    private readonly capability: ModelCapabilityService,
   ) {}
 
   /**
    * The whole turn, tools loop included, runs inside the interactive priority so
-   * embedding sync yields until the answer is produced. A failing tools turn
-   * degrades to retrieve-then-generate instead of failing the request.
+   * embedding sync yields until the answer is produced. In tools mode the chain
+   * is tools -> deterministic router -> legacy retrieve; every step after the
+   * first is flagged as degraded. A context budget config error is never
+   * degraded: it is an operator problem and propagates.
    */
-  async ask(opts: {
-    question: string;
-    history: Array<{ role: string; content: string }>;
-    categories?: string[];
-    sources?: string[];
-  }): Promise<string> {
+  async ask(opts: AskOptions): Promise<AskResult> {
     return this.embeddingSyncControl.runWithInteractivePriority(async () => {
       const aiConfig = await this.config.getConfig();
 
-      if (aiConfig.chatMode === 'tools') {
+      if (aiConfig.chatMode !== 'tools') {
+        return { content: await this.askWithRetrieve(opts, aiConfig) };
+      }
+
+      let reason: DegradedReason;
+      if ((await this.capability.getToolSupport()) === 'unsupported') {
+        reason = 'model_without_tools';
+      } else {
         try {
           const result = await this.orchestrator.ask(opts);
           this.logger.log(
             `Tools answer: ${result.toolSteps} steps${result.forcedClosure ? ' (forced closure)' : ''}`,
           );
-          return result.content;
+          return {
+            content: result.content,
+            meta: { via: 'tools', degraded: false, tools: result.toolsUsed },
+          };
         } catch (err: unknown) {
+          if (err instanceof ContextBudgetConfigError) throw err;
+          reason = degradedReason(err);
+          if (err instanceof ToolsNotSupportedError) {
+            await this.capability.markUnsupported();
+          }
           this.logger.warn(
-            `Tools mode failed, falling back to retrieve: ${err instanceof Error ? err.message : String(err)}`,
+            `Tools mode degraded (${reason}): ${err instanceof Error ? err.message : String(err)}`,
           );
         }
       }
 
-      return this.askWithRetrieve(opts, aiConfig);
+      const notice = degradedNotice(reason, aiConfig.chatModel);
+      try {
+        const routed = await this.router.ask(opts);
+        return {
+          content: routed.content + notice,
+          meta: {
+            via: 'router',
+            degraded: true,
+            reason,
+            tools: routed.toolsUsed,
+          },
+        };
+      } catch (err: unknown) {
+        if (err instanceof ContextBudgetConfigError) throw err;
+        this.logger.warn(
+          `Router failed, falling back to retrieve: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
+
+      return {
+        content: (await this.askWithRetrieve(opts, aiConfig)) + notice,
+        meta: { via: 'retrieve', degraded: true, reason },
+      };
     });
   }
 
   private async askWithRetrieve(
-    opts: {
-      question: string;
-      history: Array<{ role: string; content: string }>;
-      categories?: string[];
-      sources?: string[];
-    },
+    opts: AskOptions,
     aiConfig: AiRuntimeConfig,
   ): Promise<string> {
     const { question, history, categories, sources } = opts;

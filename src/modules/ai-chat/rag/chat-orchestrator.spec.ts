@@ -2,6 +2,7 @@ import { Logger } from '@nestjs/common';
 import { ContextBudgetConfigError } from './context-budget';
 import {
   ChatOrchestrator,
+  NoToolCallsError,
   NO_ANSWER_MESSAGE,
   ToolExecutor,
 } from './chat-orchestrator';
@@ -58,6 +59,12 @@ describe('ChatOrchestrator', () => {
     categories: ['vuln-monitor'],
   };
 
+  // No data intent, so a plain first answer is legitimate.
+  const chitchat = {
+    question: 'hola',
+    history: [{ role: 'user', content: 'hola' }],
+  };
+
   const toolCall = {
     content: '',
     toolCalls: [{ name: 'get_cve', arguments: { cveId: 'CVE-2024-3400' } }],
@@ -101,11 +108,32 @@ describe('ChatOrchestrator', () => {
     expect(secondTools).toBe(tools.definitions);
   });
 
+  it('signals NoToolCallsError when step 1 returns no tool call for a data question', async () => {
+    const { orchestrator, chatWithTools } = makeOrchestrator();
+    chatWithTools.mockResolvedValueOnce({ content: 'Creo que es una RCE.' });
+
+    await expect(orchestrator.ask(input)).rejects.toBeInstanceOf(
+      NoToolCallsError,
+    );
+    expect(chatWithTools).toHaveBeenCalledTimes(1);
+  });
+
+  it('accepts a plain answer after the first step even for a data question', async () => {
+    const { orchestrator, chatWithTools } = makeOrchestrator();
+    chatWithTools
+      .mockResolvedValueOnce(toolCall)
+      .mockResolvedValueOnce({ content: 'Respuesta.' });
+
+    await expect(orchestrator.ask(input)).resolves.toMatchObject({
+      content: 'Respuesta.',
+    });
+  });
+
   it('returns a direct answer with zero steps when the model calls no tool', async () => {
     const { orchestrator, chatWithTools, tools } = makeOrchestrator();
     chatWithTools.mockResolvedValueOnce({ content: 'Hola, ¿qué necesitas?' });
 
-    const result = await orchestrator.ask(input);
+    const result = await orchestrator.ask(chitchat);
 
     expect(result).toEqual({
       content: 'Hola, ¿qué necesitas?',
@@ -243,7 +271,7 @@ describe('ChatOrchestrator', () => {
       content: '<tool_call name="get_cve">{}</tool_call>Respuesta limpia',
     });
 
-    const result = await orchestrator.ask(input);
+    const result = await orchestrator.ask(chitchat);
 
     expect(result.content).toBe('{}Respuesta limpia');
   });
@@ -254,7 +282,7 @@ describe('ChatOrchestrator', () => {
       .mockResolvedValueOnce({ content: '   ' })
       .mockResolvedValueOnce({ content: '' });
 
-    const result = await orchestrator.ask(input);
+    const result = await orchestrator.ask(chitchat);
 
     expect(result.content).toBe(NO_ANSWER_MESSAGE);
     expect(result.forcedClosure).toBe(true);
@@ -266,18 +294,20 @@ describe('ChatOrchestrator', () => {
     const { orchestrator, chatWithTools } = makeOrchestrator();
     chatWithTools.mockResolvedValueOnce({ content: 'ok' });
 
-    await orchestrator.ask(input);
+    await orchestrator.ask(chitchat);
 
     const messages = chatWithTools.mock.calls[0][0];
     expect(messages[0].role).toBe('system');
     expect(messages[0].content).toMatch(/Responde siempre en español/);
     expect(messages[0].content).not.toMatch(VOSEO);
     expect(
-      messages.filter((m: { content: string }) => m.content === input.question),
+      messages.filter(
+        (m: { content: string }) => m.content === chitchat.question,
+      ),
     ).toHaveLength(1);
     expect(messages[messages.length - 1]).toEqual({
       role: 'user',
-      content: input.question,
+      content: chitchat.question,
     });
   });
 
