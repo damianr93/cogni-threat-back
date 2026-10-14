@@ -66,8 +66,11 @@ export class VulnCveRepository {
     const mergedSources = Array.from(
       new Set([...existing.sources, ...data.sources]),
     );
+    const existingCvssScore = existing.cvssScore
+      ? Number(existing.cvssScore)
+      : null;
     const mergedCvssScore = this.pickHigher(
-      existing.cvssScore ? Number(existing.cvssScore) : null,
+      existingCvssScore,
       data.cvssScore ?? null,
     );
     const isKev = existing.isKev || (data.isKev ?? false);
@@ -89,12 +92,7 @@ export class VulnCveRepository {
       cvssScore: mergedCvssScore,
       cvssVector: data.cvssVector ?? existing.cvssVector,
       cvssVersion: data.cvssVersion ?? existing.cvssVersion,
-      severity:
-        mergedCvssScore !== null
-          ? data.cvssScore !== null
-            ? data.severity
-            : existing.severity
-          : existing.severity,
+      severity: this.mergeSeverity(existing.severity, existingCvssScore, data),
       epssScore: data.epssScore ?? existing.epssScore,
       epssPercentile: data.epssPercentile ?? existing.epssPercentile,
       ...(isKev && {
@@ -252,6 +250,27 @@ export class VulnCveRepository {
       orderBy: { modifiedAt: 'desc' },
       take: 500,
     });
+  }
+
+  /**
+   * Severity follows whichever score wins the merge. When the merged score is
+   * null there is no score to follow, so an existing severity is never
+   * discarded and a label-only incoming severity fills the gap.
+   */
+  private mergeSeverity(
+    existingSeverity: string | null,
+    existingScore: number | null,
+    data: VulnCveUpsertData,
+  ): string | null {
+    const incomingScore = data.cvssScore ?? null;
+    if (incomingScore === null) {
+      return existingSeverity ?? data.severity ?? null;
+    }
+    const incomingWins =
+      existingScore === null || incomingScore >= existingScore;
+    return incomingWins
+      ? (data.severity ?? existingSeverity)
+      : (existingSeverity ?? data.severity ?? null);
   }
 
   private pickHigher(a: number | null, b: number | null): number | null {
