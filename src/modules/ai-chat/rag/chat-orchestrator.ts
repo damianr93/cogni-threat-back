@@ -24,6 +24,8 @@ export const TOOL_EXECUTOR = Symbol('TOOL_EXECUTOR');
 export interface ToolContext {
   categories?: string[];
   sources?: string[];
+  /** Per-result character cap for this turn (clamped by `fitResult`). */
+  maxResultChars?: number;
 }
 
 /**
@@ -33,16 +35,6 @@ export interface ToolContext {
 export interface ToolExecutor {
   readonly definitions: ToolDefinition[];
   execute(call: ToolCall, context: ToolContext): Promise<unknown>;
-}
-
-/** Registry placeholder until the real tools land: advertises nothing, rejects every call. */
-@Injectable()
-export class EmptyToolExecutor implements ToolExecutor {
-  readonly definitions: ToolDefinition[] = [];
-
-  execute(call: ToolCall): Promise<unknown> {
-    return Promise.resolve({ error: `Unknown tool: ${call.name}` });
-  }
 }
 
 export interface OrchestratorInput {
