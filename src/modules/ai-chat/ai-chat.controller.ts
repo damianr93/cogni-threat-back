@@ -15,6 +15,8 @@ import { RequireWrite } from '../../shared/auth/decorators/require-write.decorat
 import type { AuthenticatedUser } from '../../shared/auth/types/authenticated-user.type';
 import { AiChatService } from './ai-chat.service';
 import { SyncSchedulerService } from './ingestion/sync-scheduler.service';
+import { VectorPurgeService } from './vector/vector-purge.service';
+import { ConfirmPurgeDto } from './dto/confirm-purge.dto';
 import { AskQuestionDto } from './dto/ask-question.dto';
 import { CreateConversationDto } from './dto/create-conversation.dto';
 import { DeleteConversationDto } from './dto/delete-conversation.dto';
@@ -25,6 +27,7 @@ export class AiChatController {
   constructor(
     private readonly aiChat: AiChatService,
     private readonly sync: SyncSchedulerService,
+    private readonly purge: VectorPurgeService,
   ) {}
 
   @Get('health')
@@ -149,6 +152,24 @@ export class AiChatController {
     return {
       success: true,
       data: this.sync.resumeEmbeddingSync(),
+    };
+  }
+
+  @Get('admin/vectors/purge/report')
+  @Roles('ADMIN')
+  async getPurgeReport() {
+    return { success: true, data: await this.purge.getReport() };
+  }
+
+  @Post('admin/vectors/purge')
+  @Roles('ADMIN')
+  async purgeVectors(@Body() body: ConfirmPurgeDto) {
+    return {
+      success: true,
+      data: await this.purge.purge({
+        confirm: body.confirm,
+        force: body.force,
+      }),
     };
   }
 }
