@@ -24,7 +24,14 @@ export function passesSeverityGate(
       : [...DEFAULT_VULN_SEVERITIES]
   ).map((s) => s.toUpperCase());
   const sev = (cve.severity ?? 'UNKNOWN').toUpperCase();
-  if (severities.length > 0 && !severities.includes(sev)) return false;
+
+  // A CVE in the CISA KEV catalogue is being exploited right now and usually
+  // ships no CVSS of its own. Rating it 'UNKNOWN' and dropping it would silence
+  // the highest-priority feed, so active exploitation bypasses the qualitative
+  // severity list. Every other filter below still applies.
+  if (!cve.isKev && severities.length > 0 && !severities.includes(sev)) {
+    return false;
+  }
 
   if (settings.cvssMin != null && cve.cvssScore != null) {
     if (Number(cve.cvssScore) < settings.cvssMin) return false;
