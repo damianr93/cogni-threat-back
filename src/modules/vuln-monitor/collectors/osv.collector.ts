@@ -5,15 +5,12 @@ import * as readline from 'readline';
 import { BaseCollector, SyncResult } from './base.collector';
 import { VulnCveRepository } from '../repositories/vuln-cve.repository';
 import { SyncStateRepository } from '../repositories/sync-state.repository';
-import { parseCvssVector, severityFromScore } from '../utils/cvss.util';
+import { OsvSeverityResolution, resolveOsvSeverity } from '../utils/cvss.util';
 
 const MODIFIED_CSV =
   'https://osv-vulnerabilities.storage.googleapis.com/modified_id.csv';
 const OSV_DETAIL = 'https://api.osv.dev/v1/vulns';
 const CHECKPOINT_EVERY = 200;
-const SEVERITY_LABELS = ['NONE', 'LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
-// GitHub-reviewed advisories use MODERATE where CVSS uses MEDIUM.
-const SEVERITY_LABEL_ALIASES: Record<string, string> = { MODERATE: 'MEDIUM' };
 
 interface OsvModifiedEntry {
   id: string;
@@ -225,49 +222,11 @@ export class OsvCollector extends BaseCollector {
 
   /**
    * OSV publishes CVSS vectors but never the numeric score, so the score is
-   * recomputed locally. An advisory may carry several vectors: a scored 3.1
-   * vector wins, then any scored vector, then the first recognised vector
-   * (kept for visibility, e.g. CVSS 4.0, which is not scored). When no score
-   * is available the advisory's own `database_specific.severity` label is
-   * used. A malformed vector with no label yields a null severity and the
-   * advisory is still ingested.
+   * recomputed locally (see `resolveOsvSeverity`). A malformed vector with no
+   * label yields a null severity and the advisory is still ingested.
    */
-  private mapSeverity(vuln: any): {
-    cvssScore: number | null;
-    cvssVector: string | null;
-    cvssVersion: string | null;
-    severity: string | null;
-  } {
-    const entries: any[] = Array.isArray(vuln.severity) ? vuln.severity : [];
-    const parsed = entries
-      .filter((entry) => typeof entry?.score === 'string')
-      .map((entry) => ({
-        vector: entry.score as string,
-        ...parseCvssVector(entry.score),
-      }))
-      .filter((entry) => entry.version !== null);
-
-    const best =
-      parsed.find((e) => e.score !== null && e.version === '3.1') ??
-      parsed.find((e) => e.score !== null) ??
-      parsed[0] ??
-      null;
-
-    return {
-      cvssScore: best?.score ?? null,
-      cvssVector: best?.vector ?? null,
-      cvssVersion: best?.version ?? null,
-      severity:
-        severityFromScore(best?.score, best?.version) ??
-        this.normalizeSeverityLabel(vuln.database_specific?.severity),
-    };
-  }
-
-  private normalizeSeverityLabel(value: unknown): string | null {
-    if (typeof value !== 'string') return null;
-    const upper = value.trim().toUpperCase();
-    const label = SEVERITY_LABEL_ALIASES[upper] ?? upper;
-    return SEVERITY_LABELS.includes(label) ? label : null;
+  private mapSeverity(vuln: any): OsvSeverityResolution {
+    return resolveOsvSeverity(vuln.severity, vuln.database_specific?.severity);
   }
 
   private sleep(ms: number) {

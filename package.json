@@ -34,7 +34,8 @@
     "db:migrate:deploy": "prisma migrate deploy",
     "seed:vuln": "ts-node scripts/seed-vuln.ts",
     "seed:admin": "ts-node scripts/seed-admin.ts",
-    "telegram:auth": "ts-node scripts/telegram-auth.ts"
+    "telegram:auth": "ts-node scripts/telegram-auth.ts",
+    "backfill:osv-severity": "ts-node scripts/backfill-osv-severity.ts"
   },
   "dependencies": {
     "@nestjs/axios": "^4.0.0",
