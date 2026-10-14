@@ -472,8 +472,33 @@ export class AlertsService {
       }),
     ]);
 
-    const data = await Promise.all(
-      rawData.map(async (item) => {
+    const data = await this.withTelegramMessages(rawData);
+
+    const totalPages = Math.ceil(total / limit) || 1;
+    return {
+      success: true,
+      data,
+      total,
+      page,
+      limit,
+      totalPages,
+    };
+  }
+
+  /**
+   * Ensure every history row exposes `payload.telegramMessage`, resolving it
+   * from the source tables when it was not stored with the alert.
+   */
+  async withTelegramMessages<
+    T extends {
+      serviceSource: string;
+      incidentId: string;
+      eventId: string | null;
+      payload: Prisma.JsonValue | null;
+    },
+  >(rows: T[]): Promise<T[]> {
+    return Promise.all(
+      rows.map(async (item) => {
         const payload = (item.payload as Record<string, unknown> | null) || {};
         if (
           typeof payload.telegramMessage === 'string' &&
@@ -493,16 +518,6 @@ export class AlertsService {
         };
       }),
     );
-
-    const totalPages = Math.ceil(total / limit) || 1;
-    return {
-      success: true,
-      data,
-      total,
-      page,
-      limit,
-      totalPages,
-    };
   }
 
   /** Search inside the payload JSON column for telegramMessage text matches (PostgreSQL JSONB) */

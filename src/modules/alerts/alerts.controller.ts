@@ -9,6 +9,7 @@ import {
   Query,
 } from '@nestjs/common';
 import { AlertsService } from './alerts.service';
+import { AlertInboxService } from './alert-inbox.service';
 import { RequireWrite } from '../../shared/auth/decorators/require-write.decorator';
 import { CurrentUser } from '../../shared/auth/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../../shared/auth/types/authenticated-user.type';
@@ -23,7 +24,10 @@ import {
 
 @Controller('alerts')
 export class AlertsController {
-  constructor(private readonly alertsService: AlertsService) {}
+  constructor(
+    private readonly alertsService: AlertsService,
+    private readonly inbox: AlertInboxService,
+  ) {}
 
   @Get('sources')
   async getSources(): Promise<unknown> {
@@ -113,6 +117,48 @@ export class AlertsController {
       q: q?.trim() || undefined,
       order: order === 'asc' || order === 'desc' ? order : undefined,
     });
+  }
+
+  // Inbox routes are per user (read state), so they do not require write access.
+  @Get('notifications')
+  async getNotifications(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query('sourceKey') sourceKey?: string,
+    @Query('unread') unread?: string,
+    @Query('limit') limit?: string,
+    @Query('offset') offset?: string,
+  ) {
+    return this.inbox.list(user.id, {
+      sourceKey: sourceKey?.trim() || undefined,
+      unread: unread === 'true',
+      limit: limit ? parseInt(limit, 10) : undefined,
+      offset: offset ? parseInt(offset, 10) : undefined,
+    });
+  }
+
+  @Get('notifications/unread-count')
+  async getUnreadCount(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query('sourceKey') sourceKey?: string,
+  ) {
+    return this.inbox.unreadCount(user.id, sourceKey?.trim() || undefined);
+  }
+
+  // Declared before ':id/read' so 'read-all' is never captured as an id.
+  @Put('notifications/read-all')
+  async markAllNotificationsAsRead(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query('sourceKey') sourceKey?: string,
+  ) {
+    return this.inbox.markAllRead(user.id, sourceKey?.trim() || undefined);
+  }
+
+  @Put('notifications/:id/read')
+  async markNotificationAsRead(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.inbox.markRead(id, user.id);
   }
 
   @Post('trigger-manual-check')
