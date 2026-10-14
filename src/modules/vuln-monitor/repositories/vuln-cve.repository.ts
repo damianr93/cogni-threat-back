@@ -31,6 +31,34 @@ export interface VulnCveUpsertData {
 
 const CVE_ID_PATTERN = /^CVE-\d{4}-\d+$/i;
 
+/** Product matching scans JSON text (no index): bound the ids it may return. */
+export const PRODUCT_MATCH_CAP = 500;
+
+export type CveChatSort = 'published' | 'modified' | 'cvss' | 'epss';
+
+export interface CveChatFilters {
+  query?: string;
+  severity?: string;
+  isKev?: boolean;
+  minCvss?: number;
+  minEpss?: number;
+  product?: string;
+  publishedSince?: Date;
+  sort?: CveChatSort;
+  limit: number;
+}
+
+const CHAT_ORDER: Record<CveChatSort, Prisma.Sql> = {
+  published: Prisma.raw('"publishedAt" DESC NULLS LAST, id ASC'),
+  modified: Prisma.raw('"modifiedAt" DESC NULLS LAST, id ASC'),
+  cvss: Prisma.raw('"cvssScore" DESC NULLS LAST, id ASC'),
+  epss: Prisma.raw('"epssScore" DESC NULLS LAST, id ASC'),
+};
+
+/** Escapes LIKE wildcards with `!`, to be paired with `ESCAPE '!'`. */
+const likePattern = (text: string) =>
+  `%${text.replace(/[!%_]/g, (c) => `!${c}`)}%`;
+
 const LIST_SELECT = {
   id: true,
   cveId: true,
@@ -44,6 +72,21 @@ const LIST_SELECT = {
   isKev: true,
   modifiedAt: true,
 } satisfies Prisma.VulnCveSelect;
+
+export interface ChatCveRow {
+  id: string;
+  cveId: string | null;
+  title: string | null;
+  description: string | null;
+  severity: string | null;
+  cvssScore: Prisma.Decimal | null;
+  epssScore: Prisma.Decimal | null;
+  epssPercentile: Prisma.Decimal | null;
+  isKev: boolean;
+  kevRansomware: boolean;
+  publishedAt: Date | null;
+  modifiedAt: Date | null;
+}
 
 @Injectable()
 export class VulnCveRepository {
@@ -216,20 +259,94 @@ export class VulnCveRepository {
     };
   }
 
+  /**
+   * Bounded, parameterised search for the AI chat tools. Pass a transaction
+   * client to run it under a per-call `statement_timeout`. A CVE-id query
+   * matches exactly; other text is an escaped ILIKE on title/description.
+   * Product matching scans the PRODUCT_MATCH_CAP most recently modified ids.
+   */
+  async searchForChat(
+    filters: CveChatFilters,
+    db: Prisma.TransactionClient = this.prisma,
+  ) {
+    const conditions: Prisma.Sql[] = [];
+    const query = filters.query?.trim();
+    if (query) {
+      if (CVE_ID_PATTERN.test(query)) {
+        const id = query.toUpperCase();
+        conditions.push(Prisma.sql`(id = ${id} OR "cveId" = ${id})`);
+      } else {
+        const pattern = likePattern(query);
+        conditions.push(
+          Prisma.sql`(title ILIKE ${pattern} ESCAPE '!' OR description ILIKE ${pattern} ESCAPE '!')`,
+        );
+      }
+    }
+    if (filters.severity) {
+      conditions.push(Prisma.sql`severity = ${filters.severity}`);
+    }
+    if (filters.isKev !== undefined) {
+      conditions.push(Prisma.sql`"isKev" = ${filters.isKev}`);
+    }
+    if (filters.minCvss !== undefined) {
+      conditions.push(Prisma.sql`"cvssScore" >= ${filters.minCvss}`);
+    }
+    if (filters.minEpss !== undefined) {
+      conditions.push(Prisma.sql`"epssScore" >= ${filters.minEpss}`);
+    }
+    if (filters.publishedSince) {
+      conditions.push(Prisma.sql`"publishedAt" >= ${filters.publishedSince}`);
+    }
+
+    let productCapped = false;
+    const product = filters.product?.trim();
+    if (product) {
+      const pattern = likePattern(product);
+      const found = await db.$queryRaw<Array<{ id: string }>>(Prisma.sql`
+        SELECT id FROM vuln_cves
+        WHERE "affectedPackages"::text ILIKE ${pattern} ESCAPE '!'
+        ORDER BY "modifiedAt" DESC NULLS LAST
+        LIMIT ${PRODUCT_MATCH_CAP}
+      `);
+      if (found.length === 0) return { total: 0, productCapped, data: [] };
+      productCapped = found.length >= PRODUCT_MATCH_CAP;
+      conditions.push(Prisma.sql`id = ANY(${found.map((r) => r.id)})`);
+    }
+
+    const where = conditions.length
+      ? Prisma.sql`WHERE ${Prisma.join(conditions, ' AND ')}`
+      : Prisma.empty;
+    const order = CHAT_ORDER[filters.sort ?? 'published'];
+
+    const [{ count }] = await db.$queryRaw<Array<{ count: number }>>(
+      Prisma.sql`SELECT count(*)::int AS count FROM vuln_cves ${where}`,
+    );
+    const data = await db.$queryRaw<ChatCveRow[]>(Prisma.sql`
+      SELECT id, "cveId", title, description, severity, "cvssScore",
+             "epssScore", "epssPercentile", "isKev", "kevRansomware",
+             "publishedAt", "modifiedAt"
+      FROM vuln_cves ${where}
+      ORDER BY ${order}
+      LIMIT ${filters.limit}
+    `);
+
+    return { total: count, productCapped, data };
+  }
+
   async findById(id: string) {
     return this.prisma.vulnCve.findFirst({
       where: { OR: [{ id }, { cveId: id }] },
     });
   }
 
-  async getStats() {
+  async getStats(db: Prisma.TransactionClient = this.prisma) {
     const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
     const [total, kevCount, newLast24h, bySeverityRaw] = await Promise.all([
-      this.prisma.vulnCve.count(),
-      this.prisma.vulnCve.count({ where: { isKev: true } }),
-      this.prisma.vulnCve.count({ where: { modifiedAt: { gte: oneDayAgo } } }),
-      this.prisma.vulnCve.groupBy({
+      db.vulnCve.count(),
+      db.vulnCve.count({ where: { isKev: true } }),
+      db.vulnCve.count({ where: { modifiedAt: { gte: oneDayAgo } } }),
+      db.vulnCve.groupBy({
         by: ['severity'],
         _count: { severity: true },
         where: { severity: { not: null } },

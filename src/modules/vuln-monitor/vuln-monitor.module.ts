@@ -26,5 +26,6 @@ import { SyncStateRepository } from './repositories/sync-state.repository';
     VulnCveRepository,
     SyncStateRepository,
   ],
+  exports: [VulnCveRepository],
 })
 export class VulnMonitorModule {}

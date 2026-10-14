@@ -12,11 +12,15 @@ import { RagService } from './rag/rag.service';
 import { ChatOrchestrator, TOOL_EXECUTOR } from './rag/chat-orchestrator';
 import { ToolRegistry } from './tools/tool-registry';
 import { CHAT_TOOLS } from './tools/tool.types';
+import { buildChatTools } from './tools/chat-tools';
+import { VulnMonitorModule } from '../vuln-monitor/vuln-monitor.module';
+import { VulnCveRepository } from '../vuln-monitor/repositories/vuln-cve.repository';
+import { PrismaService } from '../../shared/database/prisma.service';
 import { SecretsModule } from '../../shared/secret-store/secrets.module';
 import { AiConfigService } from './ai-config.service';
 
 @Module({
-  imports: [DatabaseModule, SecretsModule],
+  imports: [DatabaseModule, SecretsModule, VulnMonitorModule],
   controllers: [AiChatController],
   providers: [
     AiChatService,
@@ -29,8 +33,13 @@ import { AiConfigService } from './ai-config.service';
     SyncSchedulerService,
     RagService,
     ChatOrchestrator,
-    // Concrete tools are added to CHAT_TOOLS by later slices.
-    { provide: CHAT_TOOLS, useValue: [] },
+    {
+      provide: CHAT_TOOLS,
+      // Later slices add their repositories to `inject` and `ChatToolDeps`.
+      useFactory: (cves: VulnCveRepository, prisma: PrismaService) =>
+        buildChatTools({ cves, prisma }),
+      inject: [VulnCveRepository, PrismaService],
+    },
     { provide: TOOL_EXECUTOR, useClass: ToolRegistry },
   ],
   exports: [AiChatService],
