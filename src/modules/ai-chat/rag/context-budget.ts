@@ -9,6 +9,8 @@ export const MIN_ROUND_TOKENS = 900;
 const CHARS_PER_TOKEN = 3;
 const MESSAGE_OVERHEAD_TOKENS = 4;
 const RESULT_SHARE = 0.6;
+/** Share of the spare prompt room a prefetched context block may take. */
+const PREFETCH_SHARE = 0.5;
 const TOOL_RESULT_OPEN = /^<tool_result name="([^"]*)">/;
 
 /** The fixed part of the prompt (system prompt or tool schemas) cannot fit `num_ctx`. */
@@ -125,4 +127,22 @@ export function fitContext(
       Math.floor(remaining * CHARS_PER_TOKEN * RESULT_SHARE),
     ),
   };
+}
+
+/**
+ * Characters a prefetched context block may add to the current turn. It keeps
+ * the answer reserve and one more tool round free, and leaves half of what
+ * remains for the tool results, so `fitContext` never has to trim the block.
+ */
+export function prefetchBudgetChars(
+  messages: LlmMessage[],
+  tools: ToolDefinition[] | undefined,
+  numCtx: number,
+): number {
+  const spare =
+    numCtx -
+    ANSWER_RESERVE_TOKENS -
+    MIN_ROUND_TOKENS -
+    estimateTokens(messages, tools);
+  return Math.max(0, Math.floor(spare * CHARS_PER_TOKEN * PREFETCH_SHARE));
 }

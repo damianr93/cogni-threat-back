@@ -1,6 +1,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { AiConfigService } from '../ai-config.service';
-import { fitContext } from './context-budget';
+import { fitContext, prefetchBudgetChars } from './context-budget';
+import { SourcePrefetcher } from './source-prefetch';
 import { detectIntents } from './router-intents';
 import { OllamaChatProvider } from '../providers/ollama-chat.provider';
 import {
@@ -11,6 +12,12 @@ import {
 import { LlmMessage, ToolCall, ToolDefinition } from '../types/chat.types';
 
 const MAX_HISTORY = 6;
+
+/** Room taken by the CONTEXTO/PREGUNTA frame around a prefetched block. */
+const PREFETCH_FRAME_CHARS = 120;
+/** Below this a prefetched block is not worth the prompt space. */
+const MIN_PREFETCH_CHARS = 500;
+const PREFETCH_HEADER = 'CONTEXTO (fuentes seleccionadas por el usuario):';
 
 const FORCE_CLOSURE_PROMPT =
   'Ya no puedes usar más herramientas. Responde ahora la pregunta original usando solo los resultados obtenidos; ' +
@@ -74,6 +81,7 @@ Reglas:
 - Si la pregunta es conversacional o ya tienes los datos en el historial, responde directamente sin herramientas.
 - Cita los identificadores y nombres tal como vienen en los resultados.
 - Si un resultado indica que fue truncado o el total supera lo listado, acláralo.
+- Si recibes un bloque CONTEXTO con fuentes que el usuario seleccionó, úsalo como base y consulta herramientas solo para completar lo que falte.
 - Responde siempre en español, de forma concisa y con markdown (**negritas** para términos clave, listas para enumeraciones).`;
 }
 
@@ -92,6 +100,7 @@ export class ChatOrchestrator {
     private readonly chat: OllamaChatProvider,
     @Inject(TOOL_EXECUTOR) private readonly tools: ToolExecutor,
     private readonly config: AiConfigService,
+    private readonly prefetcher: SourcePrefetcher,
   ) {}
 
   async ask(input: OrchestratorInput): Promise<OrchestratorResult> {
@@ -104,6 +113,12 @@ export class ChatOrchestrator {
       sources: input.sources,
     };
     const toolsUsed: string[] = [];
+    const hasSelectedContext = await this.addSelectedContext(
+      messages,
+      input,
+      numCtx,
+      context,
+    );
 
     while (toolsUsed.length < maxToolSteps) {
       const fit = fitContext(messages, this.tools.definitions, budget);
@@ -111,7 +126,11 @@ export class ChatOrchestrator {
       context.maxResultChars = fit.resultCap;
       const response = await this.chat.chatWithTools(fit.messages, fit.tools);
       if (!response.toolCalls?.length) {
-        if (toolsUsed.length === 0 && detectIntents(input.question).length) {
+        if (
+          toolsUsed.length === 0 &&
+          !hasSelectedContext &&
+          detectIntents(input.question).length
+        ) {
           throw new NoToolCallsError();
         }
         const text = stripToolTags(response.content);
@@ -150,6 +169,44 @@ export class ChatOrchestrator {
       forcedClosure: true,
       toolsUsed,
     };
+  }
+
+  /**
+   * Prepends the text of the sources selected in the UI to the current question.
+   * The block is sized to the context budget up front; a failure or an empty
+   * result leaves the question untouched. Returns whether a block was added.
+   */
+  private async addSelectedContext(
+    messages: LlmMessage[],
+    input: OrchestratorInput,
+    numCtx: number,
+    context: ToolContext,
+  ): Promise<boolean> {
+    if (!input.sources?.length) return false;
+    const maxChars =
+      prefetchBudgetChars(messages, this.tools.definitions, numCtx) -
+      PREFETCH_FRAME_CHARS;
+    if (maxChars < MIN_PREFETCH_CHARS) return false;
+
+    try {
+      const block = await this.prefetcher.prefetch(
+        input.sources,
+        (call) => this.executeSafely(call, context),
+        maxChars,
+      );
+      if (!block) return false;
+      const last = messages.length - 1;
+      messages[last] = {
+        ...messages[last],
+        content: `${PREFETCH_HEADER}\n${block}\n\nPREGUNTA:\n${messages[last].content}`,
+      };
+      return true;
+    } catch (err: unknown) {
+      this.logger.warn(
+        `Selected source prefetch failed: ${err instanceof Error ? err.message : String(err)}`,
+      );
+      return false;
+    }
   }
 
   private async executeSafely(

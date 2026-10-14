@@ -38,7 +38,7 @@ describe('AiConfigService chat mode', () => {
 
   afterEach(() => jest.restoreAllMocks());
 
-  it('defaults to retrieve with 3 tool steps and no warning', async () => {
+  it('keeps retrieve when configured, with 3 tool steps and no warning', async () => {
     const config = await service.getConfig();
 
     expect(config.chatMode).toBe('retrieve');
@@ -61,13 +61,14 @@ describe('AiConfigService chat mode', () => {
     expect((await service.getConfig()).chatMode).toBe('tools');
   });
 
-  it('falls back to retrieve and warns once on an invalid value', async () => {
+  it('falls back to the default tools mode and warns once on an invalid value', async () => {
     mockEnvs.RAG_CHAT_MODE = 'banana';
 
-    expect((await service.getConfig()).chatMode).toBe('retrieve');
-    expect((await service.getConfig()).chatMode).toBe('retrieve');
+    expect((await service.getConfig()).chatMode).toBe('tools');
+    expect((await service.getConfig()).chatMode).toBe('tools');
 
     expect(warn).toHaveBeenCalledTimes(1);
     expect(warn.mock.calls[0][0]).toContain('banana');
+    expect(warn.mock.calls[0][0]).toContain('using "tools"');
   });
 });

@@ -4,7 +4,7 @@ import { SecretsService } from '../../shared/secret-store/secrets.service';
 
 export type ChatMode = 'retrieve' | 'tools';
 
-const DEFAULT_CHAT_MODE: ChatMode = 'retrieve';
+const DEFAULT_CHAT_MODE: ChatMode = 'tools';
 
 export interface AiRuntimeConfig {
   ollamaUrl: string;

@@ -315,6 +315,35 @@ export class VectorRepository implements OnModuleInit {
     }
   }
 
+  /** The first `chunksPerSource` chunks of each source, in chunk order. */
+  async findTextBySources(
+    sources: string[],
+    chunksPerSource = 3,
+  ): Promise<Array<{ source: string; category: string; text: string }>> {
+    if (sources.length === 0) return [];
+    const client = await this.pool.connect();
+    try {
+      const result = await client.query<{
+        source: string;
+        category: string;
+        text: string;
+      }>(
+        `SELECT source, category, text FROM (
+           SELECT source, category, text, chunk_index,
+                  row_number() OVER (PARTITION BY source ORDER BY chunk_index) AS n
+           FROM ai_context_vectors
+           WHERE source = ANY($1)
+         ) chunks
+         WHERE n <= $2
+         ORDER BY source, chunk_index`,
+        [sources, chunksPerSource],
+      );
+      return result.rows;
+    } finally {
+      client.release();
+    }
+  }
+
   /** The subset of `sources` that have at least one vector. */
   async existingSources(sources: string[]): Promise<Set<string>> {
     if (sources.length === 0) return new Set();

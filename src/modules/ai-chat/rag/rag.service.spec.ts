@@ -332,13 +332,19 @@ describe('RagService', () => {
   });
 
   describe('invalid mode', () => {
-    it('uses retrieve and warns when RAG_CHAT_MODE is unknown', async () => {
+    it('uses the default tools mode and warns when RAG_CHAT_MODE is unknown', async () => {
       mockEnvs.RAG_CHAT_MODE = 'banana';
+      orchestrator.ask.mockResolvedValue({
+        content: 'respuesta con tools',
+        toolSteps: 0,
+        forcedClosure: false,
+        toolsUsed: [],
+      });
 
       const answer = await service.ask(opts);
 
-      expect(answer.content).toBe('respuesta legacy');
-      expect(orchestrator.ask).not.toHaveBeenCalled();
+      expect(answer.content).toBe('respuesta con tools');
+      expect(chat.chat).not.toHaveBeenCalled();
       expect(warn.mock.calls.flat().join(' ')).toContain('banana');
     });
   });

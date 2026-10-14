@@ -4,6 +4,7 @@ import {
   ContextBudgetConfigError,
   estimateTokens,
   fitContext,
+  prefetchBudgetChars,
 } from './context-budget';
 
 const msg = (
@@ -234,5 +235,43 @@ describe('fitContext keeps room for another tool round', () => {
     expect(fit.forceClosure).toBe(false);
     expect(fit.tools).toBe(tools);
     expect(fit.messages).toEqual([system, question]);
+  });
+});
+
+describe('prefetchBudgetChars', () => {
+  it('offers half of the spare tokens once the answer and a tool round are reserved', () => {
+    // 300-char system + 100-char question: 104 + 38 tokens used.
+    const messages = [msg('system', 300), msg('user', 100)];
+    const spare = 8192 - 1024 - 900 - estimateTokens(messages);
+
+    expect(prefetchBudgetChars(messages, undefined, 8192)).toBe(
+      Math.floor(spare * 3 * 0.5),
+    );
+  });
+
+  it('shrinks with the tool schemas and reaches zero instead of going negative', () => {
+    const messages = [msg('system', 300), msg('user', 100)];
+    const bare = prefetchBudgetChars(messages, undefined, 8192);
+
+    expect(prefetchBudgetChars(messages, [toolWith(3000)], 8192)).toBeLessThan(
+      bare,
+    );
+    expect(prefetchBudgetChars(messages, [toolWith(30000)], 8192)).toBe(0);
+  });
+
+  it('leaves a prompt that fitContext keeps intact and still offering tools', () => {
+    const messages = [msg('system', 300), msg('user', 100)];
+    const tools = [toolWith(2000)];
+    const budget = prefetchBudgetChars(messages, tools, 8192);
+    const withBlock = [
+      messages[0],
+      { ...messages[1], content: 'c'.repeat(budget) + messages[1].content },
+    ];
+
+    const fit = fitContext(withBlock, tools, opts(8192, 1));
+
+    expect(budget).toBeGreaterThan(1000);
+    expect(fit.forceClosure).toBe(false);
+    expect(fit.messages).toEqual(withBlock);
   });
 });
