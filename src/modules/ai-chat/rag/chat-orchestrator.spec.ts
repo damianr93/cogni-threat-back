@@ -1,4 +1,5 @@
 import { Logger } from '@nestjs/common';
+import { ContextBudgetConfigError } from './context-budget';
 import {
   ChatOrchestrator,
   NO_ANSWER_MESSAGE,
@@ -13,6 +14,7 @@ const VOSEO = /\b(tenés|podés|usá|respondé|decilo|sos|querés|probá|sabés)
 describe('ChatOrchestrator', () => {
   function makeOrchestrator(opts?: {
     maxToolSteps?: number;
+    numCtx?: number;
     tools?: ToolExecutor;
   }) {
     const chatWithTools = jest.fn();
@@ -29,9 +31,11 @@ describe('ChatOrchestrator', () => {
         .mockResolvedValue({ found: true, id: 'CVE-2024-3400' }),
     };
     const config = {
-      getConfig: jest
-        .fn()
-        .mockResolvedValue({ maxToolSteps: opts?.maxToolSteps ?? 3 }),
+      getConfig: jest.fn().mockResolvedValue({
+        maxToolSteps: opts?.maxToolSteps ?? 3,
+        numCtx: opts?.numCtx ?? 8192,
+        queryMaxChars: 2000,
+      }),
     };
     jest.spyOn(Logger.prototype, 'log').mockImplementation(() => undefined);
     const orchestrator = new ChatOrchestrator(
@@ -75,7 +79,11 @@ describe('ChatOrchestrator', () => {
     });
     expect(tools.execute).toHaveBeenCalledWith(
       { name: 'get_cve', arguments: { cveId: 'CVE-2024-3400' } },
-      { categories: ['vuln-monitor'], sources: undefined },
+      {
+        categories: ['vuln-monitor'],
+        sources: undefined,
+        maxResultChars: 2500,
+      },
     );
     const [secondTurn, secondTools] = chatWithTools.mock.calls[1];
     expect(secondTurn.slice(-2)).toEqual([
@@ -278,5 +286,78 @@ describe('ChatOrchestrator', () => {
     chatWithTools.mockRejectedValue(new Error('ollama down'));
 
     await expect(orchestrator.ask(input)).rejects.toThrow('ollama down');
+  });
+
+  describe('context budget', () => {
+    it('hands each tool a per-result cap derived from the remaining budget', async () => {
+      const { orchestrator, chatWithTools, tools } = makeOrchestrator();
+      chatWithTools
+        .mockResolvedValueOnce(toolCall)
+        .mockResolvedValueOnce({ content: 'listo' });
+
+      await orchestrator.ask(input);
+
+      const context = (tools.execute as jest.Mock).mock.calls[0][1];
+      expect(context.maxResultChars).toBe(2500);
+    });
+
+    it('omits the oldest tool result instead of overflowing num_ctx', async () => {
+      const big = jest.fn().mockResolvedValue({ pad: 'x'.repeat(6000) });
+      const { orchestrator, chatWithTools } = makeOrchestrator({
+        numCtx: 5024,
+        tools: {
+          definitions: [
+            {
+              name: 'get_cve',
+              description: 'd',
+              parameters: { type: 'object' },
+            },
+          ],
+          execute: big,
+        },
+      });
+      chatWithTools
+        .mockResolvedValueOnce(toolCall)
+        .mockResolvedValueOnce(toolCall)
+        .mockResolvedValueOnce({ content: 'listo' });
+
+      await orchestrator.ask(input);
+
+      const third = chatWithTools.mock.calls[2][0] as Array<{
+        content: string;
+      }>;
+      expect(third.some((m) => m.content.includes('context_budget'))).toBe(
+        true,
+      );
+    });
+
+    it('skips straight to a tool-less closing call when too little budget remains', async () => {
+      const { orchestrator, chatWithTools, tools } = makeOrchestrator({
+        numCtx: 1500,
+      });
+      chatWithTools.mockResolvedValueOnce({ content: 'cierre' });
+
+      const result = await orchestrator.ask(input);
+
+      expect(chatWithTools).toHaveBeenCalledTimes(1);
+      expect(chatWithTools.mock.calls[0][1]).toBeUndefined();
+      expect(tools.execute).not.toHaveBeenCalled();
+      expect(result).toMatchObject({
+        content: 'cierre',
+        forcedClosure: true,
+        toolSteps: 0,
+      });
+    });
+
+    it('fails fast with a config error when the system prompt and schemas do not fit', async () => {
+      const { orchestrator, chatWithTools } = makeOrchestrator({
+        numCtx: 1100,
+      });
+
+      await expect(orchestrator.ask(input)).rejects.toBeInstanceOf(
+        ContextBudgetConfigError,
+      );
+      expect(chatWithTools).not.toHaveBeenCalled();
+    });
   });
 });
