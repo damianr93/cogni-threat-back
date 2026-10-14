@@ -126,17 +126,18 @@ export class VulnCveRepository {
     batch: { cveId: string; epss: number; percentile: number }[],
   ) {
     if (batch.length === 0) return;
+    // Columns are camelCase (no @map). "updatedAt" is intentionally not written:
+    // the RAG ingestion cursor walks it, and an EPSS refresh must not re-embed.
     await this.prisma.$executeRaw`
       UPDATE vuln_cves SET
-        epss_score = v.epss,
-        epss_percentile = v.percentile,
-        updated_at = NOW()
+        "epssScore" = v.epss,
+        "epssPercentile" = v.percentile
       FROM (
         SELECT unnest(${batch.map((b) => b.cveId)}::text[]) AS cve_id,
                unnest(${batch.map((b) => b.epss)}::numeric[]) AS epss,
                unnest(${batch.map((b) => b.percentile)}::numeric[]) AS percentile
       ) AS v(cve_id, epss, percentile)
-      WHERE vuln_cves.cve_id = v.cve_id
+      WHERE vuln_cves."cveId" = v.cve_id
          OR vuln_cves.id = v.cve_id
     `;
   }
