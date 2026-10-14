@@ -11,6 +11,7 @@ import { SyncSchedulerService } from './ingestion/sync-scheduler.service';
 import { EmbeddingSyncControlService } from './ingestion/embedding-sync-control.service';
 import { RagService } from './rag/rag.service';
 import { ChatOrchestrator, TOOL_EXECUTOR } from './rag/chat-orchestrator';
+import { ChatRouter } from './rag/chat-router';
 import { ToolRegistry } from './tools/tool-registry';
 import { CHAT_TOOLS } from './tools/tool.types';
 import { buildChatTools } from './tools/chat-tools';
@@ -37,6 +38,7 @@ import { ModelCapabilityService } from './capability/model-capability.service';
     SyncSchedulerService,
     RagService,
     ChatOrchestrator,
+    ChatRouter,
     {
       provide: CHAT_TOOLS,
       // Later slices add their repositories to `inject` and `ChatToolDeps`.
