@@ -4,6 +4,13 @@ import { PrismaService } from '../../../shared/database/prisma.service';
 import { VulnCveRepository } from '../../vuln-monitor/repositories/vuln-cve.repository';
 import { ToolResult } from './fit-result';
 import { withStatementTimeout } from './statement-timeout';
+import {
+  cut,
+  optionalBool,
+  optionalDate,
+  optionalNumber,
+  optionalText,
+} from './tool-args';
 import { ChatTool, defineTool, limitOf, MAX_TOOL_LIMIT } from './tool.types';
 
 export interface CveToolDeps {
@@ -17,48 +24,10 @@ const SEVERITIES = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'] as const;
 const SORTS = ['published', 'modified', 'cvss', 'epss'] as const;
 const CVE_ID = /^CVE-\d{4}-\d{4,}$/i;
 
-const cut = (text: string | null | undefined, max: number) =>
-  !text ? null : text.length > max ? `${text.slice(0, max)}…` : text;
 const num = (v: Prisma.Decimal | number | null | undefined) =>
   v === null || v === undefined ? null : Number(v);
 const day = (d: Date | null | undefined) =>
   d ? d.toISOString().slice(0, 10) : null;
-
-const optionalText = (max: number) =>
-  z
-    .string()
-    .trim()
-    .max(max)
-    .optional()
-    .transform((v) => v || undefined);
-
-const optionalBool = z.preprocess(
-  (v) => (v === 'true' ? true : v === 'false' ? false : v),
-  z.boolean().optional(),
-);
-
-const optionalNumber = (min: number, max: number) =>
-  z.preprocess(
-    (v) => (v === undefined || v === null || v === '' ? undefined : Number(v)),
-    z.number().finite().min(min).max(max).optional(),
-  );
-
-const optionalDate = z
-  .string()
-  .trim()
-  .optional()
-  .transform((v, ctx) => {
-    if (!v) return undefined;
-    const date = new Date(v);
-    if (Number.isNaN(date.getTime())) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: `invalid date: ${v}`,
-      });
-      return z.NEVER;
-    }
-    return date;
-  });
 
 const searchSchema = z.object({
   query: optionalText(200),
