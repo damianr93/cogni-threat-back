@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { DatabaseModule } from '../../shared/database/database.module';
 import { AiChatController } from './ai-chat.controller';
 import { AiChatService } from './ai-chat.service';
+import { ContextSourcesService } from './context-sources/context-sources.service';
 import { OllamaChatProvider } from './providers/ollama-chat.provider';
 import { OllamaEmbeddingsProvider } from './providers/ollama-embeddings.provider';
 import { VectorRepository } from './vector/vector.repository';
@@ -28,6 +29,7 @@ import { ModelCapabilityService } from './capability/model-capability.service';
   controllers: [AiChatController],
   providers: [
     AiChatService,
+    ContextSourcesService,
     AiConfigService,
     OllamaChatProvider,
     ModelCapabilityService,

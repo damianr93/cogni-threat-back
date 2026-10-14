@@ -7,8 +7,8 @@ import {
   ModelCapabilityService,
   type ToolSupport,
 } from './capability/model-capability.service';
+import { ContextSourcesService } from './context-sources/context-sources.service';
 import { MOCK_CONTEXT_CATEGORIES } from './mocks/mock-context-categories';
-import { deriveLabel } from './ingestion/entity-serializers';
 import {
   AskResponse,
   ChatMessage,
@@ -24,6 +24,7 @@ export class AiChatService {
     private readonly vectorRepo: VectorRepository,
     private readonly aiConfig: AiConfigService,
     private readonly capability: ModelCapabilityService,
+    private readonly contextSources: ContextSourcesService,
   ) {}
 
   async getHealth() {
@@ -197,37 +198,13 @@ export class AiChatService {
     return this.vectorRepo.countByCategory();
   }
 
-  async getContextSources(
+  getContextSources(
     page = 1,
     limit = 20,
     search?: string,
     category?: string,
   ): Promise<ContextSourcesPage> {
-    const safeLimit = Math.min(Math.max(limit, 1), 50);
-    const safePage = Math.max(page, 1);
-    const offset = (safePage - 1) * safeLimit;
-
-    const { items, total } = await this.vectorRepo.listSources({
-      limit: safeLimit,
-      offset,
-      category,
-      search,
-    });
-
-    const mappedItems = items.map((row) => ({
-      id: row.source,
-      label: deriveLabel(row.source, row.summary),
-      category: row.category,
-      summary: row.summary || undefined,
-    }));
-
-    return {
-      items: mappedItems,
-      total,
-      page: safePage,
-      limit: safeLimit,
-      totalPages: Math.ceil(total / safeLimit) || 1,
-    };
+    return this.contextSources.list({ page, limit, search, category });
   }
 
   private async getConversationOrThrow(conversationId: number, userId: string) {

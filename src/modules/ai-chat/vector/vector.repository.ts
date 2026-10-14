@@ -24,6 +24,10 @@ export interface SourceItem {
   summary: string;
 }
 
+/** LIKE pattern matching every source that starts with `prefix`. */
+const prefixPattern = (prefix: string) =>
+  `${prefix.replace(/[\\%_]/g, '\\$&')}%`;
+
 @Injectable()
 export class VectorRepository implements OnModuleInit {
   private readonly logger = new Logger(VectorRepository.name);
@@ -190,11 +194,7 @@ export class VectorRepository implements OnModuleInit {
         filters.push(`source = ANY($${params.length})`);
       }
       if (opts.excludeSourcePrefixes && opts.excludeSourcePrefixes.length > 0) {
-        params.push(
-          opts.excludeSourcePrefixes.map(
-            (prefix) => `${prefix.replace(/[\\%_]/g, '\\$&')}%`,
-          ),
-        );
+        params.push(opts.excludeSourcePrefixes.map(prefixPattern));
         filters.push(`NOT (source LIKE ANY($${params.length}))`);
       }
 
@@ -223,6 +223,8 @@ export class VectorRepository implements OnModuleInit {
     offset: number;
     category?: string;
     search?: string;
+    /** Sources starting with any of these prefixes are left out. */
+    excludeSourcePrefixes?: string[];
   }): Promise<{ items: SourceItem[]; total: number }> {
     const client = await this.pool.connect();
     try {
@@ -234,6 +236,10 @@ export class VectorRepository implements OnModuleInit {
         params.push(opts.category);
         filters.push(`category = $${params.length}`);
       }
+      if (opts.excludeSourcePrefixes && opts.excludeSourcePrefixes.length > 0) {
+        params.push(opts.excludeSourcePrefixes.map(prefixPattern));
+        filters.push(`NOT (source LIKE ANY($${params.length}))`);
+      }
 
       let rankSelect = '0';
       if (search) {
@@ -241,14 +247,14 @@ export class VectorRepository implements OnModuleInit {
         // with ILIKE (keeps recall for short/partial/typo-ish substrings that FTS misses).
         params.push(search);
         const tsIdx = params.length;
-        params.push(`%${search}%`);
+        params.push(`%${search.replace(/[!%_]/g, '!$&')}%`);
         const likeIdx = params.length;
 
         filters.push(`(
           to_tsvector('spanish', source) @@ websearch_to_tsquery('spanish', $${tsIdx})
           OR to_tsvector('spanish', text) @@ websearch_to_tsquery('spanish', $${tsIdx})
-          OR source ILIKE $${likeIdx}
-          OR text ILIKE $${likeIdx}
+          OR source ILIKE $${likeIdx} ESCAPE '!'
+          OR text ILIKE $${likeIdx} ESCAPE '!'
         )`);
 
         rankSelect = `(
@@ -304,6 +310,21 @@ export class VectorRepository implements OnModuleInit {
         })),
         total,
       };
+    } finally {
+      client.release();
+    }
+  }
+
+  /** The subset of `sources` that have at least one vector. */
+  async existingSources(sources: string[]): Promise<Set<string>> {
+    if (sources.length === 0) return new Set();
+    const client = await this.pool.connect();
+    try {
+      const result = await client.query<{ source: string }>(
+        'SELECT DISTINCT source FROM ai_context_vectors WHERE source = ANY($1)',
+        [sources],
+      );
+      return new Set(result.rows.map((r) => r.source));
     } finally {
       client.release();
     }
