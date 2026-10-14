@@ -75,6 +75,61 @@ export function severityFromScore(
   return 'NONE';
 }
 
+const SEVERITY_LABELS = ['NONE', 'LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
+// GitHub-reviewed advisories use MODERATE where CVSS uses MEDIUM.
+const SEVERITY_LABEL_ALIASES: Record<string, string> = { MODERATE: 'MEDIUM' };
+
+export interface OsvSeverityResolution {
+  cvssScore: number | null;
+  cvssVector: string | null;
+  cvssVersion: string | null;
+  severity: string | null;
+}
+
+/** Normalises an advisory severity label, or returns null when unknown. */
+export function normalizeSeverityLabel(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const upper = value.trim().toUpperCase();
+  const label = SEVERITY_LABEL_ALIASES[upper] ?? upper;
+  return SEVERITY_LABELS.includes(label) ? label : null;
+}
+
+/**
+ * Resolves CVSS data from an OSV `severity` array and the advisory's
+ * `database_specific.severity` label. A scored 3.1 vector wins, then any
+ * scored vector, then the first recognised vector (kept for visibility, e.g.
+ * CVSS 4.0, which is not scored). The label is the fallback when no score is
+ * available.
+ */
+export function resolveOsvSeverity(
+  severities: unknown,
+  label: unknown,
+): OsvSeverityResolution {
+  const entries: Array<{ score?: unknown } | null> = Array.isArray(severities)
+    ? (severities as Array<{ score?: unknown } | null>)
+    : [];
+  const parsed = entries
+    .map((entry) => entry?.score)
+    .filter((score): score is string => typeof score === 'string')
+    .map((vector) => ({ vector, ...parseCvssVector(vector) }))
+    .filter((entry) => entry.version !== null);
+
+  const best =
+    parsed.find((e) => e.score !== null && e.version === '3.1') ??
+    parsed.find((e) => e.score !== null) ??
+    parsed[0] ??
+    null;
+
+  return {
+    cvssScore: best?.score ?? null,
+    cvssVector: best?.vector ?? null,
+    cvssVersion: best?.version ?? null,
+    severity:
+      severityFromScore(best?.score, best?.version) ??
+      normalizeSeverityLabel(label),
+  };
+}
+
 function toMetricMap(vector: string): MetricMap {
   const metrics: MetricMap = {};
   for (const part of vector.split('/')) {
