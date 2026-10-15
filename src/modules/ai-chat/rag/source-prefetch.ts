@@ -44,9 +44,11 @@ const asRecord = (value: unknown): Record<string, unknown> | undefined =>
 export class SourcePrefetcher {
   private readonly logger = new Logger(SourcePrefetcher.name);
 
+  // Concrete classes, not Pick<>: Nest resolves constructor parameters from
+  // their emitted runtime type, and a Pick<> is emitted as `Object`.
   constructor(
-    private readonly vectors: Pick<VectorRepository, 'findTextBySources'>,
-    private readonly prisma: Pick<PrismaService, 'ransomwareVictimsData'>,
+    private readonly vectors: VectorRepository,
+    private readonly prisma: PrismaService,
   ) {}
 
   /** The context text for `sources`, fitted to `maxChars`; empty when nothing was found. */
